@@ -46,13 +46,12 @@ void clear(char *buffer, int length);
 void writeFile(char *buffer, char *filename, int *sectors);
 void executeProgram(char *filename, int segment, int *success);
 
-int main()
-{
-	char x[3];
+int main() {
+	char *x;
     makeInterrupt21();
 	readString(x);
 	printString(x);
-	while (1);
+	while(1);
 }
 
 void handleInterrupt21(int AX, int BX, int CX, int DX) {
@@ -93,9 +92,15 @@ void printString(char *string) {
 }
 
 void readString(char *string) {
-	string[0] = interrupt(0x16, 0, 0, 0, 0);
-	string[1] = '\0';
-
+	// asumsi tidak ada proteksi overflow
+	int i = 0;
+	do {
+		string[i] = interrupt(0x16, 0, 0, 0, 0);
+		interrupt(0x10, 0xE00 + string[i], 0, 0, 0);
+		++i;
+	} while (string[i-1] != '\r');
+	string[++i] = '\0';
+	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
 int mod(int a, int b) {
