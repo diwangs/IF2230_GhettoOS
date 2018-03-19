@@ -54,7 +54,7 @@ int main() {
 	executeProgram("keyproc", 0x2000, suc);	
 	*sucStr = *suc + '0';
 	printString(sucStr);
-	while(1);
+	while(1) {}
 }
 
 void handleInterrupt21(int AX, int BX, int CX, int DX) {
@@ -133,16 +133,16 @@ void readFile(char *buffer, char *filename, int *success) {
 	int found = 0, i = 0, j = 0;		
 	readSector(dir, DIR_SECTOR);
 	// Search the sector for the file
-	while (!found && i < SECTOR_SIZE) {
+	while (!found && i * DIR_ENTRY_LENGTH < SECTOR_SIZE) {
 		// Match the filename
 		found = 1;
 		for (j = 0; j < MAX_FILES && filename[j] != '\0'; ++j) {
-			if (dir[i + j] != filename[j]) {
+			if (dir[i * DIR_ENTRY_LENGTH + j] != filename[j]) {
 				found = 0;
 				break;
 			} 
 		}
-		if(!found) i = i + DIR_ENTRY_LENGTH;
+		if(!found) ++i;
 	}
 	// If the file is not found
 	if (!found) {
@@ -150,9 +150,9 @@ void readFile(char *buffer, char *filename, int *success) {
 		return;
 	}
 	// Else, read the file sector
-	for (j = 0; j < MAX_SECTORS && dir[i + MAX_FILENAME + j] != '\0'; ++j) {	
+	for (j = 0; j < MAX_SECTORS && dir[i * DIR_ENTRY_LENGTH + MAX_FILENAME + j] != '\0'; ++j) {	
 		printString("hello from readFile");
-		readSector(buffer + j * SECTOR_SIZE, dir[i + MAX_FILENAME + j]);
+		readSector(buffer + j * SECTOR_SIZE, dir[i * DIR_ENTRY_LENGTH + MAX_FILENAME + j]);
 	}	
 	*success = 1;
 	return;
@@ -176,15 +176,12 @@ void writeFile(char *buffer, char *filename, int *sectors) {
 	if (dirIndex < MAX_FILES) {
 		int i, j, sectorCount;
 		for (i = 0, sectorCount = 0; i < MAX_BYTE && sectorCount < *sectors; ++i) {
-			if (map[i] == EMPTY) {
-				++sectorCount;
-			}
+			if (map[i] == EMPTY) ++sectorCount;
 		}
 		if (sectorCount < *sectors) {
 			*sectors = INSUFFICIENT_SECTORS;
 			return;
-		}
-		else {
+		} else {
 			clear(dir + dirIndex * DIR_ENTRY_LENGTH, DIR_ENTRY_LENGTH);
 			for (i = 0; i < MAX_FILENAME; ++i) {
 				if (filename[i] != '\0') {
@@ -205,8 +202,7 @@ void writeFile(char *buffer, char *filename, int *sectors) {
 				}
 			}
 		}
-	}
-	else {
+	} else {
 		*sectors = INSUFFICIENT_DIR_ENTRIES;
 		return;
 	}
