@@ -47,10 +47,13 @@ void writeFile(char *buffer, char *filename, int *sectors);
 void executeProgram(char *filename, int segment, int *success);
 
 int main() {
-	int* suc;
-	char* name = "keyproc";
-	makeInterrupt21();
-	executeProgram(name, 0x2000, suc);
+	//char buff[4 * SECTOR_SIZE];		
+	int *suc;
+	char *sucStr;
+	//readFile(buff, "keyproc", suc);		
+	executeProgram("keyproc", 0x2000, suc);	
+	*sucStr = *suc + '0';
+	printString(sucStr);
 	while(1);
 }
 
@@ -127,7 +130,7 @@ void writeSector(char *buffer, int sector) {
 
 void readFile(char *buffer, char *filename, int *success) {
 	char dir[SECTOR_SIZE];
-	int found = 0, i = 0, j = 0;
+	int found = 0, i = 0, j = 0;		
 	readSector(dir, DIR_SECTOR);
 	// Search the sector for the file
 	while (!found && i < SECTOR_SIZE) {
@@ -147,11 +150,10 @@ void readFile(char *buffer, char *filename, int *success) {
 		return;
 	}
 	// Else, read the file sector
-	// THERE'S A PROBLEM IN THIS BLOCK
-	for (j = 0; j < MAX_SECTORS && (int) dir[i + MAX_FILENAME + j] != 0; ++j) {
-		printString("sus");
-		readSector(buffer + j * SECTOR_SIZE, dir[i + MAX_FILENAME + j] - '0');
-	}
+	for (j = 0; j < MAX_SECTORS && dir[i + MAX_FILENAME + j] != '\0'; ++j) {	
+		printString("hello from readFile");
+		readSector(buffer + j * SECTOR_SIZE, dir[i + MAX_FILENAME + j]);
+	}	
 	*success = 1;
 	return;
 }
@@ -212,19 +214,13 @@ void writeFile(char *buffer, char *filename, int *sectors) {
 	writeSector(dir, DIR_SECTOR);
 }
 
-// WARNING: UNTESTED
 void executeProgram(char *filename, int segment, int *success) {
-	char buffer[MAX_SECTORS * SECTOR_SIZE];
+	char buffer[MAX_SECTORS * SECTOR_SIZE];	
+	int i;				
+	printString("hello from executeProgram");
 	readFile(buffer, filename, success); 
-	if (*success) {
-		int i = 0;
-		do { 
-			//interrupt(0x10, 0xE00 + buffer[i], 0, 0, 0);
-			printString("suss");		
-			putInMemory(segment, i, buffer[i]);
-			++i;
-		} while ((int) buffer[i] != 0);
-		printString("susss");		
-		launchProgram(segment);
-	}
+	if (!*success) return; 
+	for (i = 0; i < MAX_SECTORS * SECTOR_SIZE; ++i) putInMemory(segment, i, buffer[i]);
+	printString("hello from executeProgram, again");			
+	launchProgram(segment); // Not working
 }
