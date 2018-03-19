@@ -47,60 +47,66 @@ void writeFile(char *buffer, char *filename, int *sectors);
 void executeProgram(char *filename, int segment, int *success);
 
 int main() {
-	char *x;
+    char *x;
+    char *y;
     makeInterrupt21();
-	readString(x);
-	printString(x);
-	while(1);
+    readString(x);
+    printString(x);
+    readString(y);
+    printString(y);
+    while(1);
 }
 
 void handleInterrupt21(int AX, int BX, int CX, int DX) {
     switch (AX) {
-    	case 0x0:
-    	    printString(BX);
-    	    break;
-    	case 0x1:
-    	    readString(BX);
-    	    break;
-    	case 0x2:
-    	    readSector(BX, CX);
-    	    break;
-    	case 0x3:
-    	    writeSector(BX, CX);
-    	    break;
-    	case 0x4:
-    	    readFile(BX, CX, DX);
-    	    break;
-    	case 0x5:
-    	    writeFile(BX, CX, DX);
-    	    break;
-    	case 0x6:
-    	    executeProgram(BX, CX, DX);
-    	    break;
-    	default:
-    	    printString("Invalid interrupt");
+        case 0x0:
+            printString(BX);
+            break;
+        case 0x1:
+            readString(BX);
+            break;
+        case 0x2:
+            readSector(BX, CX);
+            break;
+        case 0x3:
+            writeSector(BX, CX);
+            break;
+        case 0x4:
+            readFile(BX, CX, DX);
+            break;
+        case 0x5:
+            writeFile(BX, CX, DX);
+            break;
+        case 0x6:
+            executeProgram(BX, CX, DX);
+            break;
+        default:
+            printString("Invalid interrupt");
     }
 }
 
 void printString(char *string) {
-    // masih belum yakin
+    // println
     int i = 0;
-    while (string[i] != '\0') {
-        interrupt(0x10, 0xE00 + string[i], 0, 0, 0);
-        i++;
-    }
+    while (string[i] != '\0') interrupt(0x10, 0xE00 + string[i++], 0, 0, 0);
+    interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
+    interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
 void readString(char *string) {
-	// asumsi tidak ada proteksi overflow
-	int i = 0;
-	do {
-		string[i] = interrupt(0x16, 0, 0, 0, 0);
-		interrupt(0x10, 0xE00 + string[i], 0, 0, 0);
-		++i;
-	} while (string[i-1] != '\r');
-	string[++i] = '\0';
-	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
+    int index = 0;
+    char input_buffer = 0x00; // to remember last input
+    do {
+        input_buffer = interrupt(0x16, 0, 0, 0, 0);                 // read a character from the keyboard
+        interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0);             // print it
+        if (input_buffer == '\r') string[index] = '\0';
+        else if (input_buffer != '\b') string[index++] = input_buffer;   // if it's not a backspace
+        else if (index-- > 0) {                                       // if it is backspace, space over the last character
+            interrupt(0x10, 0xE00 + 0x20, 0, 0, 0);
+            interrupt(0x10, 0xE00 + '\b', 0, 0, 0);
+        }
+    } while (input_buffer != '\r'); // wait for ENTER (0xd)
+    interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
 int mod(int a, int b) {
@@ -110,7 +116,7 @@ int mod(int a, int b) {
 
 int div(int a, int b) {
     int q = 0;
-	while (q * b <= a) q += 1;
+    while (q * b <= a) q += 1;
     return q - 1;
 }
 
