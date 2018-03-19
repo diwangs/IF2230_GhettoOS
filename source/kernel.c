@@ -47,13 +47,10 @@ void writeFile(char *buffer, char *filename, int *sectors);
 void executeProgram(char *filename, int segment, int *success);
 
 int main() {
-	char *x;
-	char *y;
+	int* suc;
+	char* name = "keyproc";
 	makeInterrupt21();
-	readString(x);
-	printString(x);
-	readString(y);
-	printString(y);
+	executeProgram(name, 0x2000, suc);
 	while(1);
 }
 
@@ -128,7 +125,36 @@ void writeSector(char *buffer, int sector) {
 	interrupt(0x13, 0x301, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
 }
 
-void readFile(char *buffer, char *filename, int *success) { /* buat sendiri */ }
+void readFile(char *buffer, char *filename, int *success) {
+	char dir[SECTOR_SIZE];
+	int found = 0, i = 0, j = 0;
+	readSector(dir, DIR_SECTOR);
+	// Search the sector for the file
+	while (!found && i < SECTOR_SIZE) {
+		// Match the filename
+		found = 1;
+		for (j = 0; j < MAX_FILES && filename[j] != '\0'; ++j) {
+			if (dir[i + j] != filename[j]) {
+				found = 0;
+				break;
+			} 
+		}
+		if(!found) i = i + DIR_ENTRY_LENGTH;
+	}
+	// If the file is not found
+	if (!found) {
+		*success = 0;
+		return;
+	}
+	// Else, read the file sector
+	// THERE'S A PROBLEM IN THIS BLOCK
+	for (j = 0; j < MAX_SECTORS && (int) dir[i + MAX_FILENAME + j] != 0; ++j) {
+		printString("sus");
+		readSector(buffer + j * SECTOR_SIZE, dir[i + MAX_FILENAME + j] - '0');
+	}
+	*success = 1;
+	return;
+}
 
 void clear(char *buffer, int length) {
 	int i;
@@ -192,10 +218,13 @@ void executeProgram(char *filename, int segment, int *success) {
 	readFile(buffer, filename, success); 
 	if (*success) {
 		int i = 0;
-		while (buffer[i] != '\0') {
+		do { 
+			//interrupt(0x10, 0xE00 + buffer[i], 0, 0, 0);
+			printString("suss");		
 			putInMemory(segment, i, buffer[i]);
 			++i;
-		}
+		} while ((int) buffer[i] != 0);
+		printString("susss");		
 		launchProgram(segment);
 	}
 }
