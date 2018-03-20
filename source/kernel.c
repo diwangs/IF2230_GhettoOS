@@ -34,18 +34,13 @@ void executeProgram(char *filename, int segment, int *success);
 void printLogo();
 
 int main() {		
-	// int *suc;
-	// char *sucStr;
-	// makeInterrupt21();	
-	// executeProgram("keyproc", 0x2000, suc);	
-	// *sucStr = *suc + '0';
-	// printString(sucStr);
+	makeInterrupt21();	
 	printLogo();
+	printString("sus");
 	while(1) {}
 }
 
-// asm linking
-void handleInterrupt21(int AX, int BX, int CX, int DX) {
+void handleInterrupt21(int AX, int BX, int CX, int DX) { // asm linking
 	switch (AX) {
 		case 0x0:
 			printString(BX);
@@ -73,8 +68,7 @@ void handleInterrupt21(int AX, int BX, int CX, int DX) {
 	}
 }
 
-void printString(char *string) {
-	// println
+void printString(char *string) { // Works like println
 	int i = 0;
 	while (string[i] != '\0') interrupt(0x10, 0xE00 + string[i++], 0, 0, 0);
 	interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
@@ -83,17 +77,17 @@ void printString(char *string) {
 
 void readString(char *string) {
 	int index = 0;
-	char input_buffer = 0x00; // to remember last input
+	char input_buffer = 0x00; // To remember last input
 	do {
-		input_buffer = interrupt(0x16, 0, 0, 0, 0); // read a character from the keyboard
-		interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // print it
-		if (input_buffer == '\r') string[index] = '\0'; // if it's an ENTER, terminate it with a NULL
-		else if (input_buffer != '\b') string[index++] = input_buffer; // if it's not a backspace, input it
-		else if (index-- > 0) { // if it is backspace, space over the last character
+		input_buffer = interrupt(0x16, 0, 0, 0, 0); // Read a character from the keyboard
+		interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // Print it
+		if (input_buffer == '\r') string[index] = '\0'; // If it's an ENTER, terminate it with a NULL
+		else if (input_buffer != '\b') string[index++] = input_buffer; // If it's not a backspace, input it
+		else if (index-- > 0) { // If it is backspace, space over the last character
 			interrupt(0x10, 0xE00 + 0x20, 0, 0, 0);
 			interrupt(0x10, 0xE00 + '\b', 0, 0, 0);
 		}
-	} while (input_buffer != '\r'); // wait for ENTER (0xd)
+	} while (input_buffer != '\r'); // Wait for ENTER 
 	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
@@ -237,6 +231,7 @@ void printLogo(){
    	printCenter(16, 20," \\ v /  ==   ==");
    	printCenter(17, 20,"  \\ /   ==   ==");
    	printCenter(18, 20," Ghetto ==   ==");
+	printString("\n\n\nPress any key to continue...");
    	interrupt(0x16,0,0,0,0);
 
 }

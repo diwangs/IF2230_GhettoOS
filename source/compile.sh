@@ -14,7 +14,8 @@ as86 kernel.asm -o kernel_asm.o
 ld86 -o kernel -d kernel.o kernel_asm.o
 dd if=kernel of=floppya.img bs=512 conv=notrunc seek=3 
 # Load the keyproc program
+gcc loadFile.c -o loadFile
 ./loadFile keyproc
 
 # Remove the temporary file
-rm kernel.o kernel_asm.o kernel bootload
+rm kernel.o kernel_asm.o kernel bootload loadFile
