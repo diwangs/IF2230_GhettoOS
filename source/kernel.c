@@ -1,19 +1,5 @@
 /* int main() {
 	 putInMemory(0xB000, 0x8000, 'K');
-	 putInMemory(0xB000, 0x8001, 0xD);
-	 putInMemory(0xB000, 0x8002, 'e');
-	 putInMemory(0xB000, 0x8003, 0xD);
-	 putInMemory(0xB000, 0x8004, 'r');
-	 putInMemory(0xB000, 0x8005, 0xD);
-	 putInMemory(0xB000, 0x8006, 'n');
-	 putInMemory(0xB000, 0x8007, 0xD);
-	 putInMemory(0xB000, 0x8008, 'e');
-	 putInMemory(0xB000, 0x8009, 0XD);
-	 putInMemory(0xB000, 0x800A, 'l');
-	 putInMemory(0xB000, 0x800B, 0xD);
-	 putInMemory(0xB000, 0x800C, '!');
-	 putInMemory(0xB000, 0x800D, 0xD);
-	 while (1);
  }
 
 // void handleInterrupt21 (int AX, int BX, int CX, int DX) {}*/
@@ -46,17 +32,17 @@ void clear(char *buffer, int length);
 void writeFile(char *buffer, char *filename, int *sectors);
 void executeProgram(char *filename, int segment, int *success);
 
-int main() {
-	//char buff[4 * SECTOR_SIZE];		
+int main() {		
 	int *suc;
 	char *sucStr;
-	//readFile(buff, "keyproc", suc);		
+	makeInterrupt21();	
 	executeProgram("keyproc", 0x2000, suc);	
 	*sucStr = *suc + '0';
 	printString(sucStr);
 	while(1) {}
 }
 
+// asm linking
 void handleInterrupt21(int AX, int BX, int CX, int DX) {
 	switch (AX) {
 		case 0x0:
@@ -151,7 +137,6 @@ void readFile(char *buffer, char *filename, int *success) {
 	}
 	// Else, read the file sector
 	for (j = 0; j < MAX_SECTORS && dir[i * DIR_ENTRY_LENGTH + MAX_FILENAME + j] != '\0'; ++j) {	
-		printString("hello from readFile");
 		readSector(buffer + j * SECTOR_SIZE, dir[i * DIR_ENTRY_LENGTH + MAX_FILENAME + j]);
 	}	
 	*success = 1;
@@ -213,10 +198,8 @@ void writeFile(char *buffer, char *filename, int *sectors) {
 void executeProgram(char *filename, int segment, int *success) {
 	char buffer[MAX_SECTORS * SECTOR_SIZE];	
 	int i;				
-	printString("hello from executeProgram");
 	readFile(buffer, filename, success); 
 	if (!*success) return; 
-	for (i = 0; i < MAX_SECTORS * SECTOR_SIZE; ++i) putInMemory(segment, i, buffer[i]);
-	printString("hello from executeProgram, again");			
-	launchProgram(segment); // Not working
+	for (i = 0; i < MAX_SECTORS * SECTOR_SIZE; ++i) putInMemory(segment, i, buffer[i]);			
+	launchProgram(segment); 
 }
