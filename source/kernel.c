@@ -28,6 +28,7 @@ void writeSector(char *buffer, int sector);
 void readFile(char *buffer, char *path, int *result, char parentIndex);
 void clear(char *buffer, int length);
 void writeFile(char *buffer, char *filename, int *sectors);
+void makeDirectory(char *path, int *result, char parentIndex);
 void executeProgram(char *filename, int segment, int *success);
 void printLogo();
 
@@ -329,6 +330,87 @@ void printCenter(int row, int ln, char* s){
 	 }
 }
 
+void makeDirectory(char *path, int *result, char parentIndex) {
+	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE];
+	int dirLine, found;
+	int dirsOffset = 0, dirsNameOffset = 0, lastSlashIdx = 0,
+	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0;
+	readSector(dir,DIRS_SECTOR);
+
+	// Check empty sector in dir
+	for (dirLine = 0; dirLine < 16; dirLine++){
+    	found = 1;
+    	for(int i = 0; i < 32 && found; i++){
+    		if(dirs[dirLine*32+i] != 0) found = 0;
+    	}
+    	if(found) break;
+	}
+
+	if (!found){ // No empty location
+		*result = -3;
+		return;
+	}
+
+	// Find the index of last slash ,to gain directory name that want to be created
+	while(path[dirsNameOffset] != '\0') {
+		if(path[dirsNameOffset] == '/') {
+			lastSlashIdx = dirsNameOffset;
+		}
+		dirsNameOffset += 1;
+	}
+
+	dirsNameOffset = 0;
+	curParent = parentIndex;
+
+	while(dirsNameOffsetChkp != lastSlashIdx) {
+		found = 0;
+		do {
+			// If the parent directory matches current parent
+			if(dirs[dirsOffset * DIRS_ENTRY_LENGTH == curParent]) {
+				found = 1;
+				for(dirsNameOffset = 1; dirsNameOffset <= MAX_FILES && path[dirsNameOffsetChkp + dirsNameOffset]) != '/'; ++dirsNameOffset) {
+					if (dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset] != path[dirsNameOffsetChkp + dirsNameOffset]) {
+						found = 0;
+						++dirsOffset;
+						break;
+					} 
+				}
+			}
+		} while (!found && dirsOffset < MAX_SECTORS);
+		if (!found) { // No such dirs
+			*result = -1;
+			return;
+		}
+		// If dirs is avail, search next dir
+		dirsNameOffsetChkp += dirsNameOffset;
+		curParent = dirsOffset;
+	}
+
+	found = 0;
+	do {
+		if(dirs[dirsOffset * DIRS_ENTRY_LENGTH] == curParent) {
+			found = 1;	
+			for(dirsNameOffset = 1; dirsNameOffset <= MAX_FILES && path[dirsNameOffsetChkp + dirsNameOffset]) != '\0'; ++dirsNameOffset) {
+				if (dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset] != path[dirsNameOffsetChkp + dirsNameOffset]) {
+					found = 0;
+					++dirsOffset;
+					break;
+				} 
+			}
+		}
+	} while(!found && dirsOffset < MAX_SECTORS);
+	
+	// No dirs yet, write directory
+	if(!found) {
+		// How to write to buffer?
+	} else { // Dirs already exist
+		*result = -2;
+		return;
+	}
+	writeSector(dirs,DIRS_SECTOR);
+
+}
+
 void printLogo(){
 	int i = 0;
 	
@@ -340,18 +422,18 @@ void printLogo(){
 
 	// print logo in center
 	printCenter(7, 20, "========        ");
-	 	printCenter(8, 20, "==               ");
-	 	printCenter(9, 20, "==   ===        ");
-	 	printCenter(10, 20,"==    ==        ");
-	 	printCenter(11, 20,"========        ");
-	 	printCenter(12, 20,"  / \\   ==   ==");
-	 	printCenter(13, 20," /   \\  ==   ==");
-	 	printCenter(14, 20,"/ 0 0 \\ =======");
-	 	printCenter(15, 20,"\\  .  / =======");
-	 	printCenter(16, 20," \\ v /  ==   ==");
-	 	printCenter(17, 20,"  \\ /   ==   ==");
-	 	printCenter(18, 20," Ghetto ==   ==");
+	printCenter(8, 20, "==              ");
+	printCenter(9, 20, "==   ===        ");
+	printCenter(10, 20,"==    ==        ");
+	printCenter(11, 20,"========        ");
+	printCenter(12, 20,"  / \\   ==   ==");
+	printCenter(13, 20," /   \\  ==   ==");
+	printCenter(14, 20,"/ 0 0 \\ =======");
+	printCenter(15, 20,"\\  .  / =======");
+	printCenter(16, 20," \\ v /  ==   ==");
+	printCenter(17, 20,"  \\ /   ==   ==");
+	printCenter(18, 20," Ghetto ==   ==");
 	printString("\n\n\nPress any key to continue...");
-	 	interrupt(0x16,0,0,0,0);
+	interrupt(0x16,0,0,0,0);
 
 }
