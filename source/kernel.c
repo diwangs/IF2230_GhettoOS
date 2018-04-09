@@ -47,7 +47,7 @@ void terminateProgram(int* result);
 
 int main() {		
 	int* result;
-	char buf[100];
+	char buf[512];
 	makeInterrupt21();
 	//printLogo();
 	readFile(buf, "/test", result, 0xFF);
