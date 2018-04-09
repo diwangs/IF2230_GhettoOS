@@ -1,25 +1,35 @@
 #!/bin/bash
 
 # Clean the floppy disk
-dd if=/dev/zero of=floppya.img bs=512 count=2880
-cd source
+dd if=/dev/zero of=floppya.img bs=512 count=2880 2> /dev/null
+echo "Purged floppya.img.."
 # Assemble the bootloader, put it in the floppy disk
-nasm bootload.asm
-dd if=bootload of=../floppya.img bs=512 count=1 conv=notrunc
+nasm source/bootload.asm
+echo "bootload.asm assembled.."
+dd if=source/bootload of=floppya.img bs=512 count=1 conv=notrunc 2> /dev/null
+echo "Bootloader loaded.."
 # Put the file system in the floppy disk
-dd if=map.img of=../floppya.img bs=512 count=2 seek=256 conv=notrunc # previously 1
-# dd if=dir.img of=floppya.img bs=512 count=1 seek=2 conv=notrunc, 257 for dirs
-dd if=files.img of=../floppya.img bs=512 count=1 seek=258 conv=notrunc
-dd if=sectors.img of=../floppya.img bs=512 count=1 seek=259 conv=notrunc
+dd if=source/map.img of=floppya.img bs=512 count=1 seek=256 conv=notrunc 2> /dev/null # previously seek=1
+echo "Map sector loaded.."
+dd if=source/files.img of=floppya.img bs=512 count=1 seek=258 conv=notrunc 2> /dev/null
+echo "Metafile sector loaded.."
+dd if=source/sectors.img of=floppya.img bs=512 count=1 seek=259 conv=notrunc 2> /dev/null
+echo "File sector loaded.."
 # Compile, link, and put the kernel into the floppy disk
-bcc -ansi -c -o kernel.o kernel.c
-as86 kernel.asm -o kernel_asm.o
-ld86 -o kernel -d kernel.o kernel_asm.o
-dd if=kernel of=../floppya.img bs=512 conv=notrunc seek=1 
+bcc -ansi -c -o source/kernel.o source/kernel.c
+echo "kernel.c compiled.."
+as86 source/kernel.asm -o source/kernel_asm.o
+echo "kernel.asm compiled.."
+ld86 -o source/kernel -d source/kernel.o source/kernel_asm.o
+echo "kernel.o and kernel_asm.o linked.."
+dd if=source/kernel of=floppya.img bs=512 seek=1 conv=notrunc 2> /dev/null
+echo "Kernel loaded.."
 
 # Remove the temporary file
-rm kernel.o kernel_asm.o kernel bootload loadFile
+rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
 
-# Load the keyproc program
-# gcc loadFile.c -o loadFile
-# ./loadFile keyproc
+# Load the test file
+gcc programs/loadFile.c -o programs/loadFile -w
+programs/loadFile test
+
+echo "GhettoOS compiled successfully!"

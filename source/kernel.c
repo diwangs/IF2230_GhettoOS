@@ -1,3 +1,12 @@
+// Utility constants
+#define TRUE 1
+#define FALSE 0
+#define INSUFFICIENT_SECTORS 0
+#define NOT_FOUND -1
+#define INSUFFICIENT_DIR_ENTRIES -1
+#define EMPTY 0x00
+#define USED 0xFF
+// File System Constants
 #define MAX_BYTE 256
 #define SECTOR_SIZE 512
 #define MAX_FILES 16
@@ -10,65 +19,43 @@
 #define DIRS_SECTOR 257
 #define FILES_SECTOR 258
 #define SECTORS_SECTOR 259
-#define TRUE 1
-#define FALSE 0
-#define INSUFFICIENT_SECTORS 0
-#define NOT_FOUND -1
-#define INSUFFICIENT_DIR_ENTRIES -1
-#define EMPTY 0x00
-#define USED 0xFF
+#define ARGS_SECTOR 512
 
-void handleInterrupt21(int AX, int BX, int CX, int DX);
+void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
+// Utility
 void printString(char *string);
 void readString(char *string);
 int mod(int a, int b);
 int div(int a, int b);
+void clear(char *buffer, int length);
+void printLogo();
+// File System
 void readSector(char *buffer, int sector);
 void writeSector(char *buffer, int sector);
 void readFile(char *buffer, char *path, int *result, char parentIndex);
-void clear(char *buffer, int length);
-void writeFile(char *buffer, char *filename, int *sectors);
+void writeFile(char *buffer, char *path, int *sectors, char parentIndex);
+void deleteFile(char *path, int *result, char parentIndex);
 void makeDirectory(char *path, int *result, char parentIndex);
+void deleteDirectory(char *path, int *success, char parentIndex);
+// Execute a Program
+void getCurdir (char *curdir);
+void getArgc (char *argc);
+void getArgv (char index, char *argv);
+void putArgs (char curdir, char argc, char **argv);
 void executeProgram(char *filename, int segment, int *success);
-void printLogo();
+void terminateProgram(int* result);
 
 int main() {		
-	int *suc;
-	makeInterrupt21();	
+	int* result;
+	char buf[100];
+	makeInterrupt21();
 	//printLogo();
-	executeProgram("keyproc", 0x2000, suc);
+	readFile(buf, "/test", result, 0xFF);
+	if (!*result) printString(buf); else printString("Failed");
 	while(1) {}
 }
 
-/*void handleInterrupt21(int AX, int BX, int CX, int DX) { // asm linking
-	switch (AX) {
-		case 0x0:
-			printString(BX);
-			break;
-		case 0x1:
-			readString(BX);
-			break;
-		case 0x2:
-			readSector(BX, CX);
-			break;
-		case 0x3:
-			writeSector(BX, CX);
-			break;
-		case 0x4:
-			readFile(BX, CX, DX);
-			break;
-		case 0x5:
-			writeFile(BX, CX, DX);
-			break;
-		case 0x6:
-			executeProgram(BX, CX, DX);
-			break;
-		default:
-			printString("Invalid interrupt");
-	}
-}*/
-
-void handleInterrupt21 (int AX, int BX, int CX, int DX) { // asm linking
+void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 	char AL, AH;
 	AL = (char) (AX);
 	AH = (char) (AX >> 8);
@@ -124,7 +111,6 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) { // asm linking
 	}
 }
 
-
 void printString(char *string) { // Works like println
 	int i = 0;
 	while (string[i] != '\0') interrupt(0x10, 0xE00 + string[i++], 0, 0, 0);
@@ -159,6 +145,47 @@ int div(int a, int b) {
 	return q - 1;
 }
 
+void clear(char *buffer, int length) {
+	int i;
+	for (i = 0; i < length; ++i) buffer[i] = EMPTY;
+}
+
+void printCenter(int row, int ln, char* s){
+	 int i = 0;
+	 int offset = 0x8000 + ((row-1)*80*2) + (40-ln/2)*2;
+	 while(s[i] != '\0'){
+			putInMemory(0xB000, offset + i*2, s[i]);
+			i++;
+	 }
+}
+
+void printLogo(){
+	int i = 0;
+	
+	// clear the screen
+	while (i < 4000){
+		putInMemory(0xB000, 0x8000 + i*2, '\0');
+		i++;
+	}
+
+	// print logo in center
+	printCenter(7, 20, "========        ");
+	printCenter(8, 20, "==              ");
+	printCenter(9, 20, "==   ===        ");
+	printCenter(10, 20,"==    ==        ");
+	printCenter(11, 20,"========        ");
+	printCenter(12, 20,"  / \\   ==   ==");
+	printCenter(13, 20," /   \\  ==   ==");
+	printCenter(14, 20,"/ 0 0 \\ =======");
+	printCenter(15, 20,"\\  .  / =======");
+	printCenter(16, 20," \\ v /  ==   ==");
+	printCenter(17, 20,"  \\ /   ==   ==");
+	printCenter(18, 20," Ghetto ==   ==");
+	printString("\n\n\nPress any key to continue...");
+	interrupt(0x16,0,0,0,0);
+
+}
+
 void readSector(char *buffer, int sector) {
 	interrupt(0x13, 0x201, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
 }
@@ -168,39 +195,13 @@ void writeSector(char *buffer, int sector) {
 }
 
 void readFile(char *buffer, char *path, int *result, char parentIndex) {
-	/*char dir[SECTOR_SIZE];
-	int found = 0, i = 0, j = 0;		
-	readSector(dir, DIR_SECTOR);
-	// Search the sector for the file
-	while (!found && i * DIR_ENTRY_LENGTH < SECTOR_SIZE) {
-		// Match the filename
-		found = 1;
-		for (j = 0; j < MAX_FILES && filename[j] != '\0'; ++j) {
-			if (dir[i * DIR_ENTRY_LENGTH + j] != filename[j]) {
-				found = 0;
-				break;
-			} 
-		}
-		if(!found) ++i;
-	}
-	// If the file is not found
-	if (!found) {
-		*success = 0;
-		return;
-	}
-	// Else, read the file sector
-	for (j = 0; j < MAX_SECTORS && dir[i * DIR_ENTRY_LENGTH + MAX_FILENAME + j] != '\0'; ++j) {	
-		readSector(buffer + j * SECTOR_SIZE, dir[i * DIR_ENTRY_LENGTH + MAX_FILENAME + j]);
-	}	
-	*success = 1;
-	return;*/
-
 	char dirs[SECTOR_SIZE], files[SECTOR_SIZE], sectors[SECTOR_SIZE];
 	int dirs_offset = 0, dirsname_offset = 0, last_slash_idx = 0, dirsname_offset_chkp = 0, cur_parent = 0, found = 0;
 	int files_offset = 0, filesname_offset = 0;
 	int sectors_offset = 0;
+
 	// Find the index of the last slash, to determine when to search for the filename instead of dirsname
-	while (path[dirsname_offset] != '\0') {
+	while (path[dirsname_offset] != '\0') {	
 		if (path[dirsname_offset] == '/') last_slash_idx = dirsname_offset;
 		++dirsname_offset;
 	}
@@ -241,11 +242,11 @@ void readFile(char *buffer, char *path, int *result, char parentIndex) {
 			for (filesname_offset = 1; filesname_offset <= MAX_FILES && path[dirsname_offset_chkp + filesname_offset] != '\0'; ++filesname_offset) {
 				if (files[(files_offset * FILES_ENTRY_LENGTH) + filesname_offset] != path[dirsname_offset_chkp + filesname_offset]) {
 					found = 0;
-					++files_offset;
+					++files_offset;					
 					break;
-				} 
+				}
 			}
-		}
+		} else ++files_offset;
 	} while (!found && files_offset < MAX_FILES);
 	if (!found) { // If there's no such file...
 		*result = -2;
@@ -253,19 +254,14 @@ void readFile(char *buffer, char *path, int *result, char parentIndex) {
 	}
 	// Read the file from its sectors
 	readSector(sectors, SECTORS_SECTOR);
-	do {
-		readSector(buffer + (sectors_offset * SECTOR_SIZE), sectors[(files_offset * SECTORS_ENTRY_LENGTH) + sectors_offset]);
+	while(sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset] != '\0' && sectors_offset < SECTORS_ENTRY_LENGTH) {
+		readSector(buffer + sectors_offset * SECTOR_SIZE, sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset]);
 		++sectors_offset;
-	} while(sectors_offset != '\0');
+	} 
 	*result = 0;
 }
 
-void clear(char *buffer, int length) {
-	int i;
-	for (i = 0; i < length; ++i) buffer[i] = EMPTY;
-}
-
-void writeFile(char *buffer, char *filename, int *sectors) {
+void writeFile(char *buffer, char *path, int *sectors, char parentIndex) { // Belom
 	char map[SECTOR_SIZE];
 	char dir[SECTOR_SIZE];
 	char sectorBuffer[SECTOR_SIZE];
@@ -286,8 +282,8 @@ void writeFile(char *buffer, char *filename, int *sectors) {
 		} else {
 			clear(dir + dirIndex * DIRS_ENTRY_LENGTH, DIRS_ENTRY_LENGTH);
 			for (i = 0; i < MAX_FILENAME; ++i) {
-				if (filename[i] != '\0') {
-					dir[dirIndex * DIRS_ENTRY_LENGTH + i] = filename[i];
+				if (path[i] != '\0') {
+					dir[dirIndex * DIRS_ENTRY_LENGTH + i] = path[i];
 				} else break;
 			}
 			for (i = 0, sectorCount = 0; i < MAX_BYTE && sectorCount < *sectors; ++i) {
@@ -321,21 +317,14 @@ void executeProgram(char *filename, int segment, int *success) {
 	launchProgram(segment); 
 }
 
-void printCenter(int row, int ln, char* s){
-	 int i = 0;
-	 int offset = 0x8000 + ((row-1)*80*2) + (40-ln/2)*2;
-	 while(s[i] != '\0'){
-			putInMemory(0xB000, offset + i*2, s[i]);
-			i++;
-	 }
-}
+void terminateProgram(int* result) {}
 
-void makeDirectory(char *path, int *result, char parentIndex) {
+void makeDirectory(char *path, int *result, char parentIndex) {}/*
 	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE];
 	int dirLine, found;
 	int dirsOffset = 0, dirsNameOffset = 0, lastSlashIdx = 0,
 	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0;
-	readSector(dir,DIRS_SECTOR);
+	readSector(dirs,DIRS_SECTOR);
 
 	// Check empty sector in dir
 	for (dirLine = 0; dirLine < 16; dirLine++){
@@ -409,31 +398,55 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 	}
 	writeSector(dirs,DIRS_SECTOR);
 
+}*/
+
+void deleteFile(char *path, int *result, char parentIndex) {}
+
+void deleteDirectory(char *path, int *success, char parentIndex) {}
+
+void putArgs (char curdir, char argc, char **argv) {
+	char args[SECTOR_SIZE];
+	int i, j, p;
+	clear(args, SECTOR_SIZE);
+	args[0] = curdir;
+	args[1] = argc;
+	i = 0;
+	j = 0;
+	for (p = 1; p < ARGS_SECTOR && i < argc; ++p) {
+		args[p] = argv[i][j];
+		if (argv[i][j] == '\0') {
+			++i;
+			j = 0;
+		} else ++j;
+	}
+	writeSector(args, ARGS_SECTOR);
 }
 
-void printLogo(){
-	int i = 0;
-	
-	// clear the screen
-	while (i < 4000){
-		putInMemory(0xB000, 0x8000 + i*2, '\0');
-		i++;
+void getCurdir (char *curdir) {
+	char args[SECTOR_SIZE];
+	readSector(args, ARGS_SECTOR);
+	*curdir = args[0];
+}
+
+void getArgc (char *argc) {
+	char args[SECTOR_SIZE];
+	readSector(args, ARGS_SECTOR);
+	*argc = args[1];
+}
+
+void getArgv (char index, char *argv) {
+	char args[SECTOR_SIZE];
+	int i, j, p;
+	readSector(args, ARGS_SECTOR);
+	i = 0;
+	j = 0;
+	for (p = 1; p < ARGS_SECTOR; ++p) {
+		if (i == index) {
+			argv[j] = args[p];
+			++j;
+		}
+		if (args[p] == '\0') {
+			if (i == index) break; else ++i;
+		}
 	}
-
-	// print logo in center
-	printCenter(7, 20, "========        ");
-	printCenter(8, 20, "==              ");
-	printCenter(9, 20, "==   ===        ");
-	printCenter(10, 20,"==    ==        ");
-	printCenter(11, 20,"========        ");
-	printCenter(12, 20,"  / \\   ==   ==");
-	printCenter(13, 20," /   \\  ==   ==");
-	printCenter(14, 20,"/ 0 0 \\ =======");
-	printCenter(15, 20,"\\  .  / =======");
-	printCenter(16, 20," \\ v /  ==   ==");
-	printCenter(17, 20,"  \\ /   ==   ==");
-	printCenter(18, 20," Ghetto ==   ==");
-	printString("\n\n\nPress any key to continue...");
-	interrupt(0x16,0,0,0,0);
-
 }
