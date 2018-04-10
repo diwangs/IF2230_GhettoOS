@@ -60,7 +60,11 @@ int main() {
 	readFile(buf, "/hehehe", result, 0xFF);	
 	if (!*result) printString(buf); else printString("Failed");	*/
 	makeDirectory("/hehehe", result, 0xFF);
-	// deleteDirectory("/hello");
+	readSector(dirs, DIRS_SECTOR);
+	printString(dirs + 1);
+	printInt((int) dirs[0]);
+	deleteDirectory("/hehehe", result, 0xFF);
+	printInt(*result);
 	readSector(dirs, DIRS_SECTOR);
 	printString(dirs + 1);
 	printInt((int) dirs[0]);
@@ -531,6 +535,7 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 				}
 			}
 		} while (!found && dirsOffset < MAX_SECTORS);
+
 		if (!found) { // No such dirs
 			*result = -1;
 			return;
@@ -553,7 +558,7 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 			}
 		} else ++dirsOffset;
 	} while(!found && dirsOffset < MAX_SECTORS);
-	printInt(unusedEntry);
+
 	// No dirs yet, write directory
 	if(!found) {
 		dirs[unusedEntry] = curParent;
@@ -572,12 +577,15 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 }
 
 void deleteDirectory(char *path, int *success, char parentIndex) {
-	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE], map[SECTOR_SIZE];
-	int dirLine, found;
+	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE], 
+	files[SECTOR_SIZE], tempFile[MAX_FILENAME], tempDir[MAX_FILENAME];
+	int dirLine, found, i;
+	int* result;
 	int dirsOffset = 0, dirsNameOffset = 0, lastSlashIdx = 0,
-	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0;
+	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0,
+	fileOffset = 0, fileNameOffset = 0;
 	readSector(dirs,DIRS_SECTOR);
-	readSector(map,MAP_SECTOR);
+	readSector(files,FILES_SECTOR);
 
 	// Find the index of last slash ,to gain directory name that want to be created
 	while(path[dirsNameOffset] != '\0') {
@@ -586,6 +594,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 		}
 		dirsNameOffset += 1;
 	}
+
 
 	dirsNameOffset = 0;
 	curParent = parentIndex;
@@ -604,7 +613,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 					} 
 				}
 			}
-		} while (!found && dirsOffset < MAX_SECTORS);
+		} while (!found && dirsOffset * DIRS_ENTRY_LENGTH < MAX_SECTORS);
 		if (!found) { // No such dirs
 			*success = -1;
 			return;
@@ -613,6 +622,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 		dirsNameOffsetChkp += dirsNameOffset;
 		curParent = dirsOffset;
 	}
+
 
 	// Search for dir that want to be deleted
 	found = 0;
@@ -626,8 +636,8 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 					break;
 				} 
 			}
-		}
-	} while(!found && dirsOffset < MAX_SECTORS);
+		} else ++dirsOffset;
+	} while(!found && dirsOffset * DIRS_ENTRY_LENGTH < MAX_SECTORS);
 
 	// Dir not found
 	if(!found) {
@@ -635,8 +645,51 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 		return;
 	}
 
-	// Back to current parent
-	dirsOffset = curParent;
+	// Delete dirs entry
+	dirs[dirsOffset * DIRS_ENTRY_LENGTH + 1] = '\0';
+
+	found = 0;
+	curParent = dirsOffset; // Set current parent to folder that want to be deleted
+	
+	dirsOffset = 0;
+	do { // Search for dirs
+		if(dirs[dirsOffset * DIRS_ENTRY_LENGTH] == curParent) {
+			// Match the dir name
+			i = 0;
+			tempDir[i] = '\\'; //store dir path in tempDir
+			i++;
+			for(dirsNameOffset = 1; dirsNameOffset <= MAX_FILES; ++dirsNameOffset) {
+				if (dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset] != '\0') {
+					tempDir[i] = dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset];
+					i++;
+				} else break;
+			}
+			deleteDirectory(tempDir, result, curParent);
+		} else ++dirsOffset;
+	} while (dirsOffset * DIRS_ENTRY_LENGTH < MAX_SECTORS);
+
+	printString("debug");
+
+	do { // Search for files
+		if (files[fileOffset * FILES_ENTRY_LENGTH] == curParent) { // If the parent directory matches current parent...
+			// Match the file 
+			i = 0;
+			tempFile[i] = '\\'; //store file path in tempFile
+			i++;
+			for(fileNameOffset = 1; fileNameOffset <= MAX_FILES; ++fileNameOffset) {
+				// End of filename
+				if(files[(fileOffset * FILES_ENTRY_LENGTH) + fileNameOffset] != '\0') {
+					tempFile[i] = files[(fileOffset * FILES_ENTRY_LENGTH) + fileNameOffset];
+					i++;
+				} else break;
+			}
+			deleteFile(tempFile, result, curParent);
+		} else ++fileOffset;
+	} while (fileOffset < MAX_FILES);
+
+	*result = 0;
+	return;
+	
 }
 
 
