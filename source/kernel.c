@@ -12,6 +12,9 @@
 #define MAX_FILES 16
 #define MAX_FILENAME 15
 #define MAX_SECTORS 20
+#define MAX_ENTRIES 32
+#define ENTRY_LENGTH 16
+#define NAME_OFFSET 1
 #define DIRS_ENTRY_LENGTH 16
 #define FILES_ENTRY_LENGTH 16
 #define SECTORS_ENTRY_LENGTH 16
@@ -392,25 +395,40 @@ void executeProgram(char *path, int segment, int *result, char parentIndex) {
 	launchProgram(segment); 
 }
 
-void terminateProgram(int* result) {}
+void terminateProgram (int *result) {
+	char shell[6];
+	shell[0] = 's';
+	shell[1] = 'h';
+	shell[2] = 'e';
+	shell[3] = 'l';
+	shell[4] = 'l';
+	shell[5] = '\0';
+	executeProgram(shell, 0x2000, result, 0xFF);
+}
+
+int findUnusedEntry (char *entries) {
+	int i;
+	for (i = 0; i < MAX_ENTRIES; ++i) {
+		if (entries[i * ENTRY_LENGTH + NAME_OFFSET] == '\0') {
+			return i;
+		}
+	}
+	return NOT_FOUND;
+}
+
 
 void makeDirectory(char *path, int *result, char parentIndex) {
 	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE];
-	int dirLine, found;
+	int dirLine, found, i;
 	int dirsOffset = 0, dirsNameOffset = 0, lastSlashIdx = 0,
 	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0;
+	int unusedEntry;
 	readSector(dirs,DIRS_SECTOR);
 
-	// Check empty sector in dir
-	for (dirLine = 0; dirLine < 16; dirLine++){
-		found = 1;
-		for(int i = 0; i < 32 && found; i++){
-			if(dirs[dirLine*32+i] != 0) found = 0;
-		}
-		if(found) break;
-	}
+	// Check empty entries in dir
+	unusedEntry = findUnusedEntry(dirs);
 
-	if (!found){ // No empty location
+	if (unusedEntry == NOT_FOUND){ // No empty location
 		*result = -3;
 		return;
 	}
@@ -466,7 +484,12 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 	
 	// No dirs yet, write directory
 	if(!found) {
-		// How to write to buffer?
+		dirs[unusedEntry] = curParent;
+		i = 1;
+		for(dirsNameOffset = lastSlashIdx + 1; path[dirsNameOffset] != '\0'; ++dirsNameOffset) {
+			dirs[unusedEntry + i] = path[dirsNameOffset];
+			i++;
+		}
 	} else { // Dirs already exist
 		*result = -2;
 		return;
@@ -512,7 +535,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 			}
 		} while (!found && dirsOffset < MAX_SECTORS);
 		if (!found) { // No such dirs
-			*result = -1;
+			*success = -1;
 			return;
 		}
 		// If dirs is avail, search next dir
@@ -537,12 +560,12 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 
 	// Dir not found
 	if(!found) {
-		*result = -1;
+		*success = -1;
 		return;
 	}
 
 	// Back to current parent
-	dirrOffSet = curParent;
+	dirsOffset = curParent;
 }
 
 void putArgs (char curdir, char argc, char **argv) {
