@@ -25,7 +25,7 @@ void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
 // Utility
 void printString(char *string);
 void readString(char *string);
-int mod(int a, int b);
+int mod(int a, int b); // Fucking bcc can't understand / and %
 int div(int a, int b);
 void clear(char *buffer, int length);
 void printLogo();
@@ -34,26 +34,27 @@ void readSector(char *buffer, int sector);
 void writeSector(char *buffer, int sector);
 void readFile(char *buffer, char *path, int *result, char parentIndex);
 void writeFile(char *buffer, char *path, int *sectors, char parentIndex);
-void deleteFile(char *path, int *result, char parentIndex);
-void makeDirectory(char *path, int *result, char parentIndex);
-void deleteDirectory(char *path, int *success, char parentIndex);
+void deleteFile(char *path, int *result, char parentIndex); // Not yet
+void makeDirectory(char *path, int *result, char parentIndex); // Not yet
+void deleteDirectory(char *path, int *success, char parentIndex); // Not yet
 // Execute a Program
 void getCurdir (char *curdir);
 void getArgc (char *argc);
 void getArgv (char index, char *argv);
 void putArgs (char curdir, char argc, char **argv);
-void executeProgram(char *path, int segment, int *result, char parentIndex);
-void terminateProgram(int* result);
+void executeProgram(char *path, int segment, int *result, char parentIndex); // segment = 0x2000
+void terminateProgram(int* result); // Not yet
 
 int main() {		
 	int* result;
 	char buf[512];
 	makeInterrupt21();
-	//printLogo();
-	writeFile("heheho", "/hehehe", result, 0xFF);
-	printString("written");
+	writeFile("hehehoo", "/hehehe", result, 0xFF);
 	readFile(buf, "/hehehe", result, 0xFF);
 	if (!*result) printString(buf); else printString("Failed");
+	deleteFile("/hehehe", result, 0xFF);
+	readFile(buf, "/hehehe", result, 0xFF);	
+	if (!*result) printString(buf); else printString("Failed");	
 	while(1) {}
 }
 
@@ -147,7 +148,7 @@ void readString(char *string) {
 	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
-int mod(int a, int b) {
+int mod(int a, int b) { 
 	while (a >= b) a -= b;
 	return a;
 }
@@ -383,16 +384,80 @@ void writeFile(char *buffer, char *path, int *sectors, char parentIndex) {
 	writeSector(sectors, SECTORS_SECTOR);
 }
 
-void executeProgram(char *path, int segment, int *result, char parentIndex) {
-	char buffer[MAX_SECTORS * SECTOR_SIZE];	
-	int i;				
-	readFile(buffer, path, result, parentIndex); 
-	if (*result) return; 
-	for (i = 0; i < MAX_SECTORS * SECTOR_SIZE; ++i) putInMemory(segment, i, buffer[i]);			
-	launchProgram(segment); 
+void deleteFile(char *path, int *result, char parentIndex) {
+	char map[SECTOR_SIZE], dirs[SECTOR_SIZE], files[SECTOR_SIZE], sectors[SECTOR_SIZE];
+	int dirs_offset = 0, dirsname_offset = 0, last_slash_idx = 0, dirsname_offset_chkp = 0, cur_parent = 0, found = 0;
+	int files_offset = 0, filesname_offset = 0;
+	int sectors_offset = 0;
+	
+	// Find the index of the last slash, to determine when to search for the filename instead of dirsname
+	while (path[dirsname_offset] != '\0') {	
+		if (path[dirsname_offset] == '/') last_slash_idx = dirsname_offset;
+		++dirsname_offset;
+	}
+	// Search for path
+	readSector(dirs, DIRS_SECTOR);	
+	dirsname_offset = 0;
+	cur_parent = parentIndex;
+	while (dirsname_offset_chkp != last_slash_idx) { 
+		found = 0;
+		do { // Search for dirs
+			if (dirs[dirs_offset * DIRS_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
+				// Match the directory name
+				found = 1;
+				for (dirsname_offset = 1; dirsname_offset <= MAX_FILES && path[dirsname_offset_chkp + dirsname_offset] != '/'; ++dirsname_offset) {
+					if (dirs[(dirs_offset * DIRS_ENTRY_LENGTH) + dirsname_offset] != path[dirsname_offset_chkp + dirsname_offset]) {
+						found = 0;
+						++dirs_offset;
+						break;
+					} 
+				}
+			}
+		} while (!found && dirs_offset < MAX_SECTORS);
+		if (!found) { // If there's no such dirs...
+			*result = -1;
+			return;
+		}
+		dirsname_offset_chkp += dirsname_offset;
+		cur_parent = dirs_offset;
+	}
+	// Search for the file
+	readSector(files, FILES_SECTOR);
+	found = 0;
+	do { // Search for files
+		if (files[files_offset * FILES_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
+			// Match the file name
+			found = 1;
+			for (filesname_offset = 1; filesname_offset <= MAX_FILES && path[dirsname_offset_chkp + filesname_offset] != '\0'; ++filesname_offset) {
+				if (files[(files_offset * FILES_ENTRY_LENGTH) + filesname_offset] != path[dirsname_offset_chkp + filesname_offset]) {
+					found = 0;
+					++files_offset;					
+					break;
+				}
+			}
+		} else ++files_offset;
+	} while (!found && files_offset < MAX_FILES);
+	if (!found) { // If there's no such file...
+		*result = -2;
+		return;
+	}
+	// Delete in map
+	readSector(map, MAP_SECTOR);
+	readSector(sectors, SECTORS_SECTOR);
+	sectors_offset = 0;
+	while (sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset] != '\0') {
+		map[sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset]] = 0x00;
+		++sectors_offset;
+	}
+	// Delete file entry
+	files[files_offset * FILES_ENTRY_LENGTH + 1] = '\0';
+	*result = 0;
+	// Write buffer
+	writeSector(map, MAP_SECTOR);
+	writeSector(dirs, DIRS_SECTOR);
+	writeSector(files, FILES_SECTOR);
+	writeSector(sectors, SECTORS_SECTOR);
 }
-
-void terminateProgram(int* result) {}
 
 void makeDirectory(char *path, int *result, char parentIndex) {}/*
 	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE];
@@ -475,8 +540,6 @@ void makeDirectory(char *path, int *result, char parentIndex) {}/*
 
 }*/
 
-void deleteFile(char *path, int *result, char parentIndex) {}
-
 void deleteDirectory(char *path, int *success, char parentIndex) {}
 
 void putArgs (char curdir, char argc, char **argv) {
@@ -525,3 +588,14 @@ void getArgv (char index, char *argv) {
 		}
 	}
 }
+
+void executeProgram(char *path, int segment, int *result, char parentIndex) {
+	char buffer[MAX_SECTORS * SECTOR_SIZE];	
+	int i;				
+	readFile(buffer, path, result, parentIndex); 
+	if (*result) return; 
+	for (i = 0; i < MAX_SECTORS * SECTOR_SIZE; ++i) putInMemory(segment, i, buffer[i]);			
+	launchProgram(segment); 
+}
+
+void terminateProgram(int* result) {}

@@ -29,7 +29,9 @@ echo "Kernel loaded.."
 rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
 
 # Load the test file
-# gcc programs/loadFile.c -o programs/loadFile -w
+# cd programs
+# gcc loadFile.c -o loadFile -w
+# cd ..
 # programs/loadFile test
 
 echo "GhettoOS compiled successfully!"
