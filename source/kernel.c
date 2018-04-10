@@ -33,11 +33,12 @@ int mod(int a, int b); // Fucking bcc can't understand / and %
 int div(int a, int b);
 void clear(char *buffer, int length);
 void printLogo();
+char searchPath(char* path, char parentIndex);
 // File System
 void readSector(char *buffer, int sector);
 void writeSector(char *buffer, int sector);
 void readFile(char *buffer, char *path, int *result, char parentIndex);
-void writeFile(char *buffer, char *path, int *sectors, char parentIndex);
+void writeFile(char *buffer, char *path, int *result, char parentIndex);
 void deleteFile(char *path, int *result, char parentIndex); 
 void makeDirectory(char *path, int *result, char parentIndex);
 void deleteDirectory(char *path, int *success, char parentIndex); // Not yet
@@ -51,19 +52,36 @@ void terminateProgram(int* result);
 
 int main() {		
 	int* result;
-	char buf[512], dirs[SECTOR_SIZE];
+	char buf[512], files[512];
+	char test1[4], test2[4];
 	makeInterrupt21();
-	/*writeFile("hehehoo", "/hehehe", result, 0xFF);
-	readFile(buf, "/hehehe", result, 0xFF);
+	
+	makeDirectory("/tor", result, 0xFF);
+	if (!*result) printString("mkdir1 Success"); else printString("Failed");
+
+	writeFile("Hello from test", "/test", result, 0x00);
+	if (!*result) printString("write Success"); else printString("Failed");	
+
+	readFile(buf, "/tor/test", result, 0xFF);
 	if (!*result) printString(buf); else printString("Failed");
-	deleteFile("/hehehe", result, 0xFF);
-	readFile(buf, "/hehehe", result, 0xFF);	
-	if (!*result) printString(buf); else printString("Failed");	*/
-	makeDirectory("/hehehe", result, 0xFF);
-	// deleteDirectory("/hello");
-	readSector(dirs, DIRS_SECTOR);
-	printString(dirs + 1);
-	printInt((int) dirs[0]);
+
+	deleteDirectory("/tor", result, 0xFF);
+	if (!*result) printString("deldir Success"); else printString("Failed");
+
+	readFile(buf, "/tor/test", result, 0xFF);
+	if (!*result) printString(buf); else printString("Failed");
+
+	/*makeDirectory("/ter", result, 0xFF);
+	if (!*result) printString("mkdir2 Success"); else printString("Failed");
+
+	writeFile("Hello from test2", "/ter/test2", result, 0xFF);
+	if (!*result) printString("write2 Success"); else printString("Failed");
+
+	readFile(buf, "/test2", result, 0x00);
+	if (!*result) printString(buf); else printString("Failed");
+
+	deleteFile("/tor/test", result, 0xFF);
+	if (!*result) printString("delete Success"); else printString("Failed");*/
 	while(1) {}
 }
 
@@ -162,6 +180,15 @@ void readString(char *string) {
 	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
+int strcmp(char* s1, char* s2) {
+	int i = 0;
+	while (!(s1[i] == '\0' && s2[i] == '\0')) {
+		if (s1[i] != s2[i]) return 0;
+		++i;
+	}
+	return 1;
+}
+
 int mod(int a, int b) { 
 	while (a >= b) a -= b;
 	return a;
@@ -196,6 +223,54 @@ int findUnusedEntry (char *entries) {
 		}
 	}
 	return NOT_FOUND;
+}
+
+char searchPath(char* path, char parentIndex) { // return the index of the last dirs
+	char dirs[SECTOR_SIZE], cur_parent;
+	int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, found = 0;
+	readSector(dirs, DIRS_SECTOR);	
+	dirsname_offset = 0;
+	cur_parent = parentIndex;
+	while (path[dirsname_offset_chkp] != '\0') { 
+		found = 0;
+		// Search for dirs
+		do { 
+			// If the parent directory matches current parent...
+			if (dirs[dirs_offset * DIRS_ENTRY_LENGTH] == cur_parent) { 
+				// Match the directory name
+				found = 1;
+				for (dirsname_offset = 1; dirsname_offset <= MAX_FILES && path[dirsname_offset_chkp + dirsname_offset] != '/' && path[dirsname_offset_chkp + dirsname_offset] != '\0'; ++dirsname_offset) {
+					//printInt(dirs_offset);				
+					if (dirs[(dirs_offset * DIRS_ENTRY_LENGTH) + dirsname_offset] != path[dirsname_offset_chkp + dirsname_offset]) {									
+						found = 0;
+						++dirs_offset;
+						break;
+					} 
+				}
+			} else ++dirs_offset;
+		} while (!found && dirs_offset < MAX_SECTORS);
+		if (!found) { // If there's no such dirs...
+			return 0xFE;
+		}
+		dirsname_offset_chkp += dirsname_offset;
+		cur_parent = dirs_offset;
+	}
+	return cur_parent;
+}
+
+char searchFile(char* filename, char dir_index) {
+	char files[SECTOR_SIZE];
+	int files_offset = 0, filesname_offset = 0;
+	readSector(files, FILES_SECTOR);
+	do {
+		// If the parent directory matches current parent...
+		if (files[files_offset * FILES_ENTRY_LENGTH] == dir_index) { 
+			// Match the file name
+			if(strcmp(files + files_offset * FILES_ENTRY_LENGTH + 1, filename)) break;
+		} 
+		++files_offset;
+	} while (files_offset < MAX_FILES);
+	return files_offset;
 }
 
 void printCenter(int row, int ln, char* s){
@@ -248,11 +323,8 @@ void writeSector(char *buffer, int sector) {
 }
 
 void readFile(char *buffer, char *path, int *result, char parentIndex) {
-	char dirs[SECTOR_SIZE], files[SECTOR_SIZE], sectors[SECTOR_SIZE];
-	int dirs_offset = 0, dirsname_offset = 0, last_slash_idx = 0, dirsname_offset_chkp = 0, cur_parent = 0, found = 0;
-	int files_offset = 0, filesname_offset = 0;
-	int sectors_offset = 0;
-
+	char sectors[SECTOR_SIZE];
+	int dirs_offset = 0, dirsname_offset = 0, last_slash_idx = 0, files_offset = 0, sectors_offset = 0;
 	// Find the index of the last slash, to determine when to search for the filename instead of dirsname
 	while (path[dirsname_offset] != '\0') {	
 		if (path[dirsname_offset] == '/') last_slash_idx = dirsname_offset;
@@ -260,51 +332,12 @@ void readFile(char *buffer, char *path, int *result, char parentIndex) {
 	}
 	dirsname_offset = 0;
 	// Search for path
-	readSector(dirs, DIRS_SECTOR);	
-	dirsname_offset = 0;
-	cur_parent = parentIndex;
-	while (dirsname_offset_chkp != last_slash_idx) { 
-		found = 0;
-		do { // Search for dirs
-			if (dirs[dirs_offset * DIRS_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
-				// Match the directory name
-				found = 1;
-				for (dirsname_offset = 1; dirsname_offset <= MAX_FILES && path[dirsname_offset_chkp + dirsname_offset] != '/'; ++dirsname_offset) {
-					if (dirs[(dirs_offset * DIRS_ENTRY_LENGTH) + dirsname_offset] != path[dirsname_offset_chkp + dirsname_offset]) {
-						found = 0;
-						++dirs_offset;
-						break;
-					} 
-				}
-			}
-		} while (!found && dirs_offset < MAX_SECTORS);
-		if (!found) { // If there's no such dirs...
-			*result = -1;
-			return;
-		}
-		dirsname_offset_chkp += dirsname_offset;
-		cur_parent = dirs_offset;
-	}
-	// Search for the file
-	readSector(files, FILES_SECTOR);
-	found = 0;
-	do { // Search for files
-		if (files[files_offset * FILES_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
-			// Match the file name
-			found = 1;
-			for (filesname_offset = 1; filesname_offset <= MAX_FILES && path[dirsname_offset_chkp + filesname_offset] != '\0'; ++filesname_offset) {
-				if (files[(files_offset * FILES_ENTRY_LENGTH) + filesname_offset] != path[dirsname_offset_chkp + filesname_offset]) {
-					found = 0;
-					++files_offset;					
-					break;
-				}
-			}
-		} else ++files_offset;
-	} while (!found && files_offset < MAX_FILES);
-	if (!found) { // If there's no such file...
-		*result = -2;
-		return;
-	}
+	path[last_slash_idx] = '\0';
+	dirs_offset = searchPath(path, parentIndex);
+	if (dirs_offset == 0xFE) {*result = -1; return;}
+	// Search for the file in the path
+	files_offset = searchFile(path + last_slash_idx + 1, dirs_offset);
+	if (files_offset == MAX_FILES) {*result = -2; return;}	
 	// Read the file from its sectors
 	readSector(sectors, SECTORS_SECTOR);
 	while(sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset] != '\0' && sectors_offset < SECTORS_ENTRY_LENGTH) {
@@ -314,7 +347,7 @@ void readFile(char *buffer, char *path, int *result, char parentIndex) {
 	*result = 0;
 }
 
-void writeFile(char *buffer, char *path, int *sectors, char parentIndex) {
+void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	char map[SECTOR_SIZE], dirs[SECTOR_SIZE], files[SECTOR_SIZE], sectors[SECTOR_SIZE];
 	int map_offset = 0;
 	int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, cur_parent = 0, found = 0;
@@ -331,12 +364,12 @@ void writeFile(char *buffer, char *path, int *sectors, char parentIndex) {
 	}
 	// Search for empty file entry
 	readSector(files, FILES_SECTOR);
-	for (empty_files_index = 0; files_offset < MAX_FILES; ++files_offset) {
-		if (files[files_offset * DIRS_ENTRY_LENGTH + 1] == '\0') break;
+	for (empty_files_index = 0; empty_files_index < MAX_FILES; ++empty_files_index) {
+		if (files[empty_files_index * DIRS_ENTRY_LENGTH + 1] == '\0') break;
 	}
 	// If there's no empty entries
 	if (files_offset == MAX_FILES) {
-		*sectors = -3;
+		*result = -3;
 		return;
 	}
 	// Find the index of the last slash, to determine when to search for the filename instead of dirsname
@@ -346,69 +379,30 @@ void writeFile(char *buffer, char *path, int *sectors, char parentIndex) {
 	}
 	dirsname_offset = 0;
 	// Search for path
-	readSector(dirs, DIRS_SECTOR);	
-	dirsname_offset = 0;
-	cur_parent = parentIndex;
-	while (dirsname_offset_chkp != last_slash_idx) { 
-		found = 0;
-		do { // Search for dirs
-			if (dirs[dirs_offset * DIRS_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
-				// Match the directory name
-				found = 1;
-				for (dirsname_offset = 1; dirsname_offset <= MAX_FILES && path[dirsname_offset_chkp + dirsname_offset] != '/'; ++dirsname_offset) {
-					if (dirs[(dirs_offset * DIRS_ENTRY_LENGTH) + dirsname_offset] != path[dirsname_offset_chkp + dirsname_offset]) {
-						found = 0;
-						++dirs_offset;
-						break;
-					} 
-				}
-			}
-		} while (!found && dirs_offset < MAX_SECTORS);
-		if (!found) { // If there's no such dirs...
-			*sectors = -1;
-			return;
-		}
-		dirsname_offset_chkp += dirsname_offset;
-		cur_parent = dirs_offset;
-	}
+	path[last_slash_idx] = '\0';
+	dirs_offset = searchPath(path, parentIndex);
+	if (dirs_offset == 0xFE) {*result = -1; return;}
 	// Search whether the file exists or not
-	readSector(files, FILES_SECTOR);
-	found = 0;
-	do { // Search for files
-		if (files[files_offset * FILES_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
-			// Match the file name
-			found = 1;
-			for (filesname_offset = 1; filesname_offset <= MAX_FILES && path[dirsname_offset_chkp + filesname_offset] != '\0'; ++filesname_offset) {
-				if (files[(files_offset * FILES_ENTRY_LENGTH) + filesname_offset] != path[dirsname_offset_chkp + filesname_offset]) {
-					found = 0;
-					++files_offset;		
-					break;
-				}
-			}
-		} else ++files_offset;
-	} while (!found && files_offset < MAX_FILES);
-	if (found) { // If there's such file...
-		*sectors = -2;
-		return;
-	}
+	files_offset = searchFile(path + last_slash_idx + 1, dirs_offset);
+	if (files_offset != MAX_FILES) {*result = -2; return;}
 	// Write to file entry
-	files[empty_files_index] = (char) cur_parent;
+	files[empty_files_index * FILES_ENTRY_LENGTH] = (char) dirs_offset;
 	dirsname_offset = 1;
 	while (path[last_slash_idx + dirsname_offset] != '\0') {
-		files[empty_files_index + dirsname_offset] = path[last_slash_idx + dirsname_offset];	
+		files[empty_files_index * FILES_ENTRY_LENGTH + dirsname_offset] = path[last_slash_idx + dirsname_offset];	
 		++dirsname_offset;
 	}
 	// Write buffer
+	readSector(sectors, SECTORS_SECTOR);	
 	while (buffer[sectors_offset * SECTOR_SIZE] != '\0') {
 		empty_sector = findUnusedSector(map);
 		writeSector(buffer + sectors_offset * SECTOR_SIZE, empty_sector);
-		sectors[empty_files_index + sectors_offset] = empty_sector;
+		sectors[empty_files_index * SECTORS_ENTRY_LENGTH + sectors_offset] = empty_sector;
 		map[empty_sector] = 0xFF;
 		++sectors_offset;
 	}
 	// Write to floppy
 	writeSector(map, MAP_SECTOR);
-	writeSector(dirs, DIRS_SECTOR);
 	writeSector(files, FILES_SECTOR);
 	writeSector(sectors, SECTORS_SECTOR);
 }
@@ -425,57 +419,19 @@ void deleteFile(char *path, int *result, char parentIndex) {
 		++dirsname_offset;
 	}
 	// Search for path
-	readSector(dirs, DIRS_SECTOR);	
-	dirsname_offset = 0;
-	cur_parent = parentIndex;
-	while (dirsname_offset_chkp != last_slash_idx) { 
-		found = 0;
-		do { // Search for dirs
-			if (dirs[dirs_offset * DIRS_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
-				// Match the directory name
-				found = 1;
-				for (dirsname_offset = 1; dirsname_offset <= MAX_FILES && path[dirsname_offset_chkp + dirsname_offset] != '/'; ++dirsname_offset) {
-					if (dirs[(dirs_offset * DIRS_ENTRY_LENGTH) + dirsname_offset] != path[dirsname_offset_chkp + dirsname_offset]) {
-						found = 0;
-						++dirs_offset;
-						break;
-					} 
-				}
-			}
-		} while (!found && dirs_offset < MAX_SECTORS);
-		if (!found) { // If there's no such dirs...
-			*result = -1;
-			return;
-		}
-		dirsname_offset_chkp += dirsname_offset;
-		cur_parent = dirs_offset;
-	}
+	path[last_slash_idx] = '\0';
+	dirs_offset = searchPath(path, parentIndex);
+	if (dirs_offset == 0xFE) {*result = -1; return;}
 	// Search for the file
-	readSector(files, FILES_SECTOR);
-	found = 0;
-	do { // Search for files
-		if (files[files_offset * FILES_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
-			// Match the file name
-			found = 1;
-			for (filesname_offset = 1; filesname_offset <= MAX_FILES && path[dirsname_offset_chkp + filesname_offset] != '\0'; ++filesname_offset) {
-				if (files[(files_offset * FILES_ENTRY_LENGTH) + filesname_offset] != path[dirsname_offset_chkp + filesname_offset]) {
-					found = 0;
-					++files_offset;					
-					break;
-				}
-			}
-		} else ++files_offset;
-	} while (!found && files_offset < MAX_FILES);
-	if (!found) { // If there's no such file...
-		*result = -2;
-		return;
-	}
+	files_offset = searchFile(path + last_slash_idx + 1, dirs_offset);
+	if (files_offset == MAX_FILES) {*result = -2; return;}
 	// Delete in map
 	readSector(map, MAP_SECTOR);
 	readSector(sectors, SECTORS_SECTOR);
 	sectors_offset = 0;
 	while (sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset] != '\0') {
 		map[sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset]] = 0x00;
+		// clear sectors?
 		++sectors_offset;
 	}
 	// Delete file entry
@@ -483,7 +439,6 @@ void deleteFile(char *path, int *result, char parentIndex) {
 	*result = 0;
 	// Write buffer
 	writeSector(map, MAP_SECTOR);
-	writeSector(dirs, DIRS_SECTOR);
 	writeSector(files, FILES_SECTOR);
 	writeSector(sectors, SECTORS_SECTOR);
 }
@@ -494,7 +449,7 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 	int dirLine, found, i;
 	int dirsOffset = 0, dirsNameOffset = 0, lastSlashIdx = 0,
 	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0;
-	int unusedEntry;
+	int unusedEntry, toBeCreatedOffset = 0;
 	readSector(dirs,DIRS_SECTOR);
 
 	// Check empty entries in dir
@@ -516,55 +471,20 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 	dirsNameOffset = 0;
 	curParent = parentIndex;
 
-	while(dirsNameOffsetChkp != lastSlashIdx) {
-		found = 0;
-		do {
-			// If the parent directory matches current parent
-			if(dirs[dirsOffset * DIRS_ENTRY_LENGTH == curParent]) {
-				found = 1;
-				for(dirsNameOffset = 1; dirsNameOffset <= MAX_FILES && path[dirsNameOffsetChkp + dirsNameOffset] != '/'; ++dirsNameOffset) {
-					if (dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset] != path[dirsNameOffsetChkp + dirsNameOffset]) {
-						found = 0;
-						++dirsOffset;
-						break;
-					} 
-				}
-			}
-		} while (!found && dirsOffset < MAX_SECTORS);
-		if (!found) { // No such dirs
-			*result = -1;
-			return;
-		}
-		// If dirs is avail, search next dir
-		dirsNameOffsetChkp += dirsNameOffset;
-		curParent = dirsOffset;
-	}
+	// Search for parent path
+	path[lastSlashIdx] = '\0';
+	dirsOffset = searchPath(path, parentIndex);
+	if (dirsOffset == 0xFE) {*result = -1; return;}
+	// Check the availability of path name
+	toBeCreatedOffset = searchPath(path + lastSlashIdx + 1, dirsOffset);
+	if (toBeCreatedOffset != 0xFE) {*result = -2; return;}
 	
-	found = 0;
-	do {
-		if(dirs[dirsOffset * DIRS_ENTRY_LENGTH] == curParent) {
-			found = 1;	
-			for(dirsNameOffset = 1; dirsNameOffset <= MAX_FILES && path[dirsNameOffsetChkp + dirsNameOffset] != '\0'; ++dirsNameOffset) {
-				if (dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset] != path[dirsNameOffsetChkp + dirsNameOffset]) {
-					found = 0;
-					++dirsOffset;
-					break;
-				} 
-			}
-		} else ++dirsOffset;
-	} while(!found && dirsOffset < MAX_SECTORS);
-	printInt(unusedEntry);
 	// No dirs yet, write directory
-	if(!found) {
-		dirs[unusedEntry] = curParent;
-		i = 1;
-		for(dirsNameOffset = lastSlashIdx + 1; path[dirsNameOffset] != '\0'; ++dirsNameOffset) {
-			dirs[unusedEntry + i] = path[dirsNameOffset];
-			i++;
-		}
-	} else { // Dirs already exist
-		*result = -2;
-		return;
+	dirs[unusedEntry * DIRS_ENTRY_LENGTH] = dirsOffset;
+	i = 1;
+	for(dirsNameOffset = lastSlashIdx + 1; path[dirsNameOffset] != '\0'; ++dirsNameOffset) {
+		dirs[unusedEntry * DIRS_ENTRY_LENGTH + i] = path[dirsNameOffset];
+		i++;
 	}
 	*result = 0;
 	writeSector(dirs,DIRS_SECTOR);
@@ -572,71 +492,41 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 }
 
 void deleteDirectory(char *path, int *success, char parentIndex) {
-	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE], map[SECTOR_SIZE];
-	int dirLine, found;
+	char dirs[SECTOR_SIZE], files[SECTOR_SIZE];
+	int dirLine, found, dirdelOffset = 0;
 	int dirsOffset = 0, dirsNameOffset = 0, lastSlashIdx = 0,
 	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0;
+	int files_offset = 0;
+	char* delresult;
 	readSector(dirs,DIRS_SECTOR);
-	readSector(map,MAP_SECTOR);
-
-	// Find the index of last slash ,to gain directory name that want to be created
-	while(path[dirsNameOffset] != '\0') {
-		if(path[dirsNameOffset] == '/') {
-			lastSlashIdx = dirsNameOffset;
-		}
-		dirsNameOffset += 1;
-	}
 
 	dirsNameOffset = 0;
 	curParent = parentIndex;
 
-	while(dirsNameOffsetChkp != lastSlashIdx) {
-		found = 0;
-		do {
-			// If the parent directory matches current parent
-			if(dirs[dirsOffset * DIRS_ENTRY_LENGTH == curParent]) {
-				found = 1;
-				for(dirsNameOffset = 1; dirsNameOffset <= MAX_FILES && path[dirsNameOffsetChkp + dirsNameOffset] != '/'; ++dirsNameOffset) {
-					if (dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset] != path[dirsNameOffsetChkp + dirsNameOffset]) {
-						found = 0;
-						++dirsOffset;
-						break;
-					} 
-				}
-			}
-		} while (!found && dirsOffset < MAX_SECTORS);
-		if (!found) { // No such dirs
-			*success = -1;
-			return;
+	// Search for path
+	dirsOffset = searchPath(path, parentIndex);
+	if (dirsOffset == 0xFE) {*success = -1; return;}
+
+	// Delete the file inside the dir, if any
+	readSector(files, FILES_SECTOR);
+	for(files_offset = 0; files_offset < MAX_FILES; ++files_offset) {
+		if (files[files_offset * FILES_ENTRY_LENGTH] == dirsOffset) {
+			files[files_offset * FILES_ENTRY_LENGTH] = '/';
+			deleteFile(files + files_offset * FILES_ENTRY_LENGTH, delresult, dirsOffset);
 		}
-		// If dirs is avail, search next dir
-		dirsNameOffsetChkp += dirsNameOffset;
-		curParent = dirsOffset;
 	}
-
-	// Search for dir that want to be deleted
-	found = 0;
-	do {
-		if(dirs[dirsOffset * DIRS_ENTRY_LENGTH] == curParent) {
-			found = 1;	
-			for(dirsNameOffset = 1; dirsNameOffset <= MAX_FILES && path[dirsNameOffsetChkp + dirsNameOffset] != '\0'; ++dirsNameOffset) {
-				if (dirs[(dirsOffset * DIRS_ENTRY_LENGTH) + dirsNameOffset] != path[dirsNameOffsetChkp + dirsNameOffset]) {
-					found = 0;
-					++dirsOffset;
-					break;
-				} 
-			}
+	// Delete the dir inside the dir, if any
+	for(dirdelOffset = 0; dirdelOffset < MAX_FILES; ++dirdelOffset) {
+		//printString("sus");
+		if(dirs[dirdelOffset * DIRS_ENTRY_LENGTH] == dirsOffset) {
+			dirs[dirdelOffset * DIRS_ENTRY_LENGTH] = '/';
+			deleteDirectory(dirs + dirdelOffset * DIRS_ENTRY_LENGTH, delresult, dirsOffset);
 		}
-	} while(!found && dirsOffset < MAX_SECTORS);
-
-	// Dir not found
-	if(!found) {
-		*success = -1;
-		return;
 	}
-
-	// Back to current parent
-	dirsOffset = curParent;
+	// Delete the dir
+	dirs[dirsOffset * DIRS_ENTRY_LENGTH + 1] = '\0';
+	writeSector(dirs, DIRS_SECTOR);	
+	*success = 0;
 }
 
 
