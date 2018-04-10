@@ -12,6 +12,9 @@
 #define MAX_FILES 16
 #define MAX_FILENAME 15
 #define MAX_SECTORS 20
+#define MAX_ENTRIES 32
+#define ENTRY_LENGTH 16
+#define NAME_OFFSET 1
 #define DIRS_ENTRY_LENGTH 16
 #define FILES_ENTRY_LENGTH 16
 #define SECTORS_ENTRY_LENGTH 16
@@ -24,8 +27,9 @@
 void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
 // Utility
 void printString(char *string);
+void printInt(int i);
 void readString(char *string);
-int mod(int a, int b);
+int mod(int a, int b); // Fucking bcc can't understand / and %
 int div(int a, int b);
 void clear(char *buffer, int length);
 void printLogo();
@@ -34,26 +38,32 @@ void readSector(char *buffer, int sector);
 void writeSector(char *buffer, int sector);
 void readFile(char *buffer, char *path, int *result, char parentIndex);
 void writeFile(char *buffer, char *path, int *sectors, char parentIndex);
-void deleteFile(char *path, int *result, char parentIndex);
+void deleteFile(char *path, int *result, char parentIndex); 
 void makeDirectory(char *path, int *result, char parentIndex);
-void deleteDirectory(char *path, int *success, char parentIndex);
+void deleteDirectory(char *path, int *success, char parentIndex); // Not yet
 // Execute a Program
 void getCurdir (char *curdir);
 void getArgc (char *argc);
 void getArgv (char index, char *argv);
 void putArgs (char curdir, char argc, char **argv);
-void executeProgram(char *path, int segment, int *result, char parentIndex);
-void terminateProgram(int* result);
+void executeProgram(char *path, int segment, int *result, char parentIndex); // segment = 0x2000
+void terminateProgram(int* result); 
 
 int main() {		
 	int* result;
-	char buf[512];
+	char buf[512], dirs[SECTOR_SIZE];
 	makeInterrupt21();
-	//printLogo();
-	writeFile("heheho", "/hehehe", result, 0xFF);
-	printString("written");
+	/*writeFile("hehehoo", "/hehehe", result, 0xFF);
 	readFile(buf, "/hehehe", result, 0xFF);
 	if (!*result) printString(buf); else printString("Failed");
+	deleteFile("/hehehe", result, 0xFF);
+	readFile(buf, "/hehehe", result, 0xFF);	
+	if (!*result) printString(buf); else printString("Failed");	*/
+	makeDirectory("/hehehe", result, 0xFF);
+	// deleteDirectory("/hello");
+	readSector(dirs, DIRS_SECTOR);
+	printString(dirs + 1);
+	printInt((int) dirs[0]);
 	while(1) {}
 }
 
@@ -113,6 +123,11 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 	}
 }
 
+
+//=======================================================================================
+// Utility
+//=======================================================================================
+
 void printString(char *string) { // Works like println
 	int i = 0;
 	while (string[i] != '\0') interrupt(0x10, 0xE00 + string[i++], 0, 0, 0);
@@ -147,7 +162,7 @@ void readString(char *string) {
 	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
-int mod(int a, int b) {
+int mod(int a, int b) { 
 	while (a >= b) a -= b;
 	return a;
 }
@@ -171,6 +186,16 @@ int findUnusedSector (char *map) {
     }
   }
   return NOT_FOUND;
+}
+
+int findUnusedEntry (char *entries) {
+	int i;
+	for (i = 0; i < MAX_ENTRIES; ++i) {
+		if (entries[i * ENTRY_LENGTH + NAME_OFFSET] == '\0') {
+			return i;
+		}
+	}
+	return NOT_FOUND;
 }
 
 void printCenter(int row, int ln, char* s){
@@ -208,6 +233,11 @@ void printLogo(){
 	interrupt(0x16,0,0,0,0);
 
 }
+
+
+//=======================================================================================
+// File System
+//=======================================================================================
 
 void readSector(char *buffer, int sector) {
 	interrupt(0x13, 0x201, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
@@ -383,34 +413,94 @@ void writeFile(char *buffer, char *path, int *sectors, char parentIndex) {
 	writeSector(sectors, SECTORS_SECTOR);
 }
 
-void executeProgram(char *path, int segment, int *result, char parentIndex) {
-	char buffer[MAX_SECTORS * SECTOR_SIZE];	
-	int i;				
-	readFile(buffer, path, result, parentIndex); 
-	if (*result) return; 
-	for (i = 0; i < MAX_SECTORS * SECTOR_SIZE; ++i) putInMemory(segment, i, buffer[i]);			
-	launchProgram(segment); 
+void deleteFile(char *path, int *result, char parentIndex) {
+	char map[SECTOR_SIZE], dirs[SECTOR_SIZE], files[SECTOR_SIZE], sectors[SECTOR_SIZE];
+	int dirs_offset = 0, dirsname_offset = 0, last_slash_idx = 0, dirsname_offset_chkp = 0, cur_parent = 0, found = 0;
+	int files_offset = 0, filesname_offset = 0;
+	int sectors_offset = 0;
+	
+	// Find the index of the last slash, to determine when to search for the filename instead of dirsname
+	while (path[dirsname_offset] != '\0') {	
+		if (path[dirsname_offset] == '/') last_slash_idx = dirsname_offset;
+		++dirsname_offset;
+	}
+	// Search for path
+	readSector(dirs, DIRS_SECTOR);	
+	dirsname_offset = 0;
+	cur_parent = parentIndex;
+	while (dirsname_offset_chkp != last_slash_idx) { 
+		found = 0;
+		do { // Search for dirs
+			if (dirs[dirs_offset * DIRS_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
+				// Match the directory name
+				found = 1;
+				for (dirsname_offset = 1; dirsname_offset <= MAX_FILES && path[dirsname_offset_chkp + dirsname_offset] != '/'; ++dirsname_offset) {
+					if (dirs[(dirs_offset * DIRS_ENTRY_LENGTH) + dirsname_offset] != path[dirsname_offset_chkp + dirsname_offset]) {
+						found = 0;
+						++dirs_offset;
+						break;
+					} 
+				}
+			}
+		} while (!found && dirs_offset < MAX_SECTORS);
+		if (!found) { // If there's no such dirs...
+			*result = -1;
+			return;
+		}
+		dirsname_offset_chkp += dirsname_offset;
+		cur_parent = dirs_offset;
+	}
+	// Search for the file
+	readSector(files, FILES_SECTOR);
+	found = 0;
+	do { // Search for files
+		if (files[files_offset * FILES_ENTRY_LENGTH] == cur_parent) { // If the parent directory matches current parent...
+			// Match the file name
+			found = 1;
+			for (filesname_offset = 1; filesname_offset <= MAX_FILES && path[dirsname_offset_chkp + filesname_offset] != '\0'; ++filesname_offset) {
+				if (files[(files_offset * FILES_ENTRY_LENGTH) + filesname_offset] != path[dirsname_offset_chkp + filesname_offset]) {
+					found = 0;
+					++files_offset;					
+					break;
+				}
+			}
+		} else ++files_offset;
+	} while (!found && files_offset < MAX_FILES);
+	if (!found) { // If there's no such file...
+		*result = -2;
+		return;
+	}
+	// Delete in map
+	readSector(map, MAP_SECTOR);
+	readSector(sectors, SECTORS_SECTOR);
+	sectors_offset = 0;
+	while (sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset] != '\0') {
+		map[sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset]] = 0x00;
+		++sectors_offset;
+	}
+	// Delete file entry
+	files[files_offset * FILES_ENTRY_LENGTH + 1] = '\0';
+	*result = 0;
+	// Write buffer
+	writeSector(map, MAP_SECTOR);
+	writeSector(dirs, DIRS_SECTOR);
+	writeSector(files, FILES_SECTOR);
+	writeSector(sectors, SECTORS_SECTOR);
 }
 
-void terminateProgram(int* result) {}
 
 void makeDirectory(char *path, int *result, char parentIndex) {
 	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE];
-	int dirLine, found;
+	int dirLine, found, i;
 	int dirsOffset = 0, dirsNameOffset = 0, lastSlashIdx = 0,
 	dirsNameOffsetChkp = 0, curParent = 0, sectorsOffset = 0;
+	int unusedEntry;
 	readSector(dirs,DIRS_SECTOR);
 
-	// Check empty sector in dir
-	for (dirLine = 0; dirLine < 16; dirLine++){
-		found = 1;
-		for(int i = 0; i < 32 && found; i++){
-			if(dirs[dirLine*32+i] != 0) found = 0;
-		}
-		if(found) break;
-	}
+	// Check empty entries in dir
+	unusedEntry = findUnusedEntry(dirs);
 
-	if (!found){ // No empty location
+	if (unusedEntry == NOT_FOUND){ // No empty location
 		*result = -3;
 		return;
 	}
@@ -449,7 +539,7 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 		dirsNameOffsetChkp += dirsNameOffset;
 		curParent = dirsOffset;
 	}
-
+	
 	found = 0;
 	do {
 		if(dirs[dirsOffset * DIRS_ENTRY_LENGTH] == curParent) {
@@ -461,21 +551,25 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 					break;
 				} 
 			}
-		}
+		} else ++dirsOffset;
 	} while(!found && dirsOffset < MAX_SECTORS);
-	
+	printInt(unusedEntry);
 	// No dirs yet, write directory
 	if(!found) {
-		// How to write to buffer?
+		dirs[unusedEntry] = curParent;
+		i = 1;
+		for(dirsNameOffset = lastSlashIdx + 1; path[dirsNameOffset] != '\0'; ++dirsNameOffset) {
+			dirs[unusedEntry + i] = path[dirsNameOffset];
+			i++;
+		}
 	} else { // Dirs already exist
 		*result = -2;
 		return;
 	}
+	*result = 0;
 	writeSector(dirs,DIRS_SECTOR);
 
 }
-
-void deleteFile(char *path, int *result, char parentIndex) {}
 
 void deleteDirectory(char *path, int *success, char parentIndex) {
 	char dirs[SECTOR_SIZE], sectors[SECTOR_SIZE], map[SECTOR_SIZE];
@@ -512,7 +606,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 			}
 		} while (!found && dirsOffset < MAX_SECTORS);
 		if (!found) { // No such dirs
-			*result = -1;
+			*success = -1;
 			return;
 		}
 		// If dirs is avail, search next dir
@@ -537,13 +631,18 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 
 	// Dir not found
 	if(!found) {
-		*result = -1;
+		*success = -1;
 		return;
 	}
 
 	// Back to current parent
-	dirrOffSet = curParent;
+	dirsOffset = curParent;
 }
+
+
+//=======================================================================================
+// Program execution
+//=======================================================================================
 
 void putArgs (char curdir, char argc, char **argv) {
 	char args[SECTOR_SIZE];
@@ -590,4 +689,25 @@ void getArgv (char index, char *argv) {
 			if (i == index) break; else ++i;
 		}
 	}
+}
+
+void executeProgram(char *path, int segment, int *result, char parentIndex) {
+	char buffer[MAX_SECTORS * SECTOR_SIZE];	
+	int i;				
+	readFile(buffer, path, result, parentIndex); 
+	if (*result) return; 
+	for (i = 0; i < MAX_SECTORS * SECTOR_SIZE; ++i) putInMemory(segment, i, buffer[i]);			
+	launchProgram(segment); 
+}
+
+void terminateProgram (int *result) {
+	char shell[7];
+	shell[0] = '/';
+	shell[1] = 's';
+	shell[2] = 'h';
+	shell[3] = 'e';
+	shell[4] = 'l';
+	shell[5] = 'l';
+	shell[6] = '\0';
+	executeProgram(shell, 0x2000, result, 0xFF);
 }
