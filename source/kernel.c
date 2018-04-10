@@ -500,6 +500,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 	char* delresult;
 	readSector(dirs,DIRS_SECTOR);
 
+
 	dirsNameOffset = 0;
 	curParent = parentIndex;
 
