@@ -37,7 +37,7 @@ void readSector(char *buffer, int sector);
 void writeSector(char *buffer, int sector);
 void readFile(char *buffer, char *path, int *result, char parentIndex);
 void writeFile(char *buffer, char *path, int *sectors, char parentIndex);
-void deleteFile(char *path, int *result, char parentIndex); // Not yet
+void deleteFile(char *path, int *result, char parentIndex); 
 void makeDirectory(char *path, int *result, char parentIndex); // Not yet
 void deleteDirectory(char *path, int *success, char parentIndex); // Not yet
 // Execute a Program
@@ -46,7 +46,7 @@ void getArgc (char *argc);
 void getArgv (char index, char *argv);
 void putArgs (char curdir, char argc, char **argv);
 void executeProgram(char *path, int segment, int *result, char parentIndex); // segment = 0x2000
-void terminateProgram(int* result); // Not yet
+void terminateProgram(int* result); 
 
 int main() {		
 	int* result;
@@ -116,6 +116,11 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 			printString("Invalid interrupt");
 	}
 }
+
+
+//=======================================================================================
+// Utility
+//=======================================================================================
 
 void printString(char *string) { // Works like println
 	int i = 0;
@@ -222,6 +227,11 @@ void printLogo(){
 	interrupt(0x16,0,0,0,0);
 
 }
+
+
+//=======================================================================================
+// File System
+//=======================================================================================
 
 void readSector(char *buffer, int sector) {
 	interrupt(0x13, 0x201, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
@@ -622,6 +632,11 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 	dirsOffset = curParent;
 }
 
+
+//=======================================================================================
+// Program execution
+//=======================================================================================
+
 void putArgs (char curdir, char argc, char **argv) {
 	char args[SECTOR_SIZE];
 	int i, j, p;
@@ -679,12 +694,13 @@ void executeProgram(char *path, int segment, int *result, char parentIndex) {
 }
 
 void terminateProgram (int *result) {
-	char shell[6];
-	shell[0] = 's';
-	shell[1] = 'h';
-	shell[2] = 'e';
-	shell[3] = 'l';
+	char shell[7];
+	shell[0] = '/';
+	shell[1] = 's';
+	shell[2] = 'h';
+	shell[3] = 'e';
 	shell[4] = 'l';
-	shell[5] = '\0';
+	shell[5] = 'l';
+	shell[6] = '\0';
 	executeProgram(shell, 0x2000, result, 0xFF);
 }
