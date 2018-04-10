@@ -27,6 +27,7 @@
 void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
 // Utility
 void printString(char *string);
+void printInt(int i);
 void readString(char *string);
 int mod(int a, int b); // Fucking bcc can't understand / and %
 int div(int a, int b);
@@ -38,7 +39,7 @@ void writeSector(char *buffer, int sector);
 void readFile(char *buffer, char *path, int *result, char parentIndex);
 void writeFile(char *buffer, char *path, int *sectors, char parentIndex);
 void deleteFile(char *path, int *result, char parentIndex); 
-void makeDirectory(char *path, int *result, char parentIndex); // Not yet
+void makeDirectory(char *path, int *result, char parentIndex);
 void deleteDirectory(char *path, int *success, char parentIndex); // Not yet
 // Execute a Program
 void getCurdir (char *curdir);
@@ -50,14 +51,19 @@ void terminateProgram(int* result);
 
 int main() {		
 	int* result;
-	char buf[512];
+	char buf[512], dirs[SECTOR_SIZE];
 	makeInterrupt21();
-	writeFile("hehehoo", "/hehehe", result, 0xFF);
+	/*writeFile("hehehoo", "/hehehe", result, 0xFF);
 	readFile(buf, "/hehehe", result, 0xFF);
 	if (!*result) printString(buf); else printString("Failed");
 	deleteFile("/hehehe", result, 0xFF);
 	readFile(buf, "/hehehe", result, 0xFF);	
-	if (!*result) printString(buf); else printString("Failed");	
+	if (!*result) printString(buf); else printString("Failed");	*/
+	makeDirectory("/hehehe", result, 0xFF);
+	// deleteDirectory("/hello");
+	readSector(dirs, DIRS_SECTOR);
+	printString(dirs + 1);
+	printInt((int) dirs[0]);
 	while(1) {}
 }
 
@@ -533,7 +539,7 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 		dirsNameOffsetChkp += dirsNameOffset;
 		curParent = dirsOffset;
 	}
-
+	
 	found = 0;
 	do {
 		if(dirs[dirsOffset * DIRS_ENTRY_LENGTH] == curParent) {
@@ -545,9 +551,9 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 					break;
 				} 
 			}
-		}
+		} else ++dirsOffset;
 	} while(!found && dirsOffset < MAX_SECTORS);
-	
+	printInt(unusedEntry);
 	// No dirs yet, write directory
 	if(!found) {
 		dirs[unusedEntry] = curParent;
@@ -560,6 +566,7 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 		*result = -2;
 		return;
 	}
+	*result = 0;
 	writeSector(dirs,DIRS_SECTOR);
 
 }
