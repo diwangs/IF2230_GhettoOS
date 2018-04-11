@@ -56,7 +56,7 @@ void terminateProgram(int* result);
 
 int main() {		
 	int* result;
-	// char buf[512];
+	char buf[512];
 	// char test1[4], test2[4];
 	// char* arg[2];
 	int success;
@@ -75,6 +75,8 @@ int main() {
 	//putArgs(0xFF, 2, arg);
 	//executeProgram("keyproc2", 0x2000, result, 0xFF);
 	//terminateProgram(result);
+	//readString(buf);
+	//printString(buf);
 
 	makeDirectory("folder", result, 0xFF);
 	makeDirectory("folder/subfolder", result, 0xFF);	
@@ -131,7 +133,7 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 			deleteDirectory(BX, CX, AH);
 			break;
 		case 0x20:
-			putArgs(BX, CX);
+			putArgs(BX, CX, DX);
 			break;
 		case 0x21:
 			getCurdir(BX);
@@ -175,10 +177,15 @@ void readString(char *string) {
 	char input_buffer = 0x00; // To remember last input
 	do {
 		input_buffer = interrupt(0x16, 0, 0, 0, 0); // Read a character from the keyboard
-		interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // Print it
-		if (input_buffer == '\r') string[index] = '\0'; // If it's an ENTER, terminate it with a NULL
-		else if (input_buffer != '\b') string[index++] = input_buffer; // If it's not a backspace, input it
-		else if (index-- > 0) { // If it is backspace, space over the last character
+		if (input_buffer == '\r') { // If it's an ENTER, terminate it with a NULL
+			interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // Print it
+			string[index] = '\0'; 
+		} else if (input_buffer != '\b') { // If it's not a backspace, input it
+			interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // Print it
+			string[index++] = input_buffer; 
+		} else if (index > 0) { // If it is backspace, space over the last character
+			--index;
+			interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // Print it
 			interrupt(0x10, 0xE00 + 0x20, 0, 0, 0);
 			interrupt(0x10, 0xE00 + '\b', 0, 0, 0);
 		}
@@ -588,13 +595,5 @@ void executeProgram(char *path, int segment, int *result, char parentIndex) {
 }
 
 void terminateProgram (int *result) {
-	char shell[7];
-	shell[0] = '/';
-	shell[1] = 's';
-	shell[2] = 'h';
-	shell[3] = 'e';
-	shell[4] = 'l';
-	shell[5] = 'l';
-	shell[6] = '\0';
-	executeProgram(shell, 0x2000, result, 0xFF);
+	executeProgram("shell", 0x2000, result, 0xFF);
 }
