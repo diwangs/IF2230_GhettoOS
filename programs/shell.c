@@ -32,6 +32,7 @@ int strcmp(char* s1, char* s2);
 void readSector(char *buffer, int sector);
 char searchDir(char* path, char parentIndex);
 char searchParent(char currentDirectory);
+void printCurDir(char currentDirectory);
 
 
 int main() {
@@ -43,16 +44,18 @@ int main() {
     char command[50];       // perintah
     char argc;              // jumlah argumen
     char argv[20][16];      // isi argumen (max 20)
-    int i = 0;              // indeks string input
-    int j = 0;
-    int argcount = 0;   // jumlah argument count
+    int i;              // indeks string input
+    int j;
+    int argcount;   // jumlah argument count
     int result;
 
     dollar[0] = '$';
     dollar[1] = ' ';   
     dollar[2] = '\0'; 
     do {
-        i=0; j=0;
+        i = 0;
+        argcount = 0;
+        j = 0;
         interrupt(0x21, 0x00, dollar, 0, 0);
         // printString("$ ");
         
@@ -91,27 +94,25 @@ int main() {
         }
 
         argc = argcount;     
-        //interrupt(0x21, 0x00, argv[0], 0, 0);    
-        //interrupt(0x21, 0x00, "\n\r\0", 0, 0);                      
 
         if (strcmp(command, "cd")) {      // pindah ke folder
-            if (argv[0] == ".." && workingdir != 0xFF) {      // ke parent directory
+            if (argcount == 0) {
+                // jangan lakukan apa
+            } else if (strcmp(argv[0], "..")) {      // ke parent directory
                 workingdir = searchParent(workingdir);
             } else {            // masuk ke sebuah directory
                 workingdir = searchDir(argv[0], workingdir);
             }
-            interrupt(0x21, 0x00, "combrotmui", 0, 0);    
-            interrupt(0x21, 0x00, "\n\r\0", 0, 0);       
         } else if (strcmp(command, "pwd")) {
-
-        } else if (!strcmp(command, "exit")) {                    // 
-            interrupt(0x21, 0x20, curdir, argc, argv);                        // taruh argumen
+            printCurDir(workingdir);
+        } else if (!strcmp(command, "exit")) {
+            interrupt(0x21, 0x20, curdir, argc, argv);                          // taruh argumen
             interrupt(0x21, (curdir << 8) | 0x06, command, 0x200, &result);     // executeProgram
-        } 
+        }
 
-        //temp[0] = '\n';
-        //temp[1] = '\0';
-        //interrupt(0x21, 0x00, temp, 0, 0);       
+        temp[0] = '\n';
+        temp[1] = '\0';
+        interrupt(0x21, 0x00, temp, 0, 0);
     } while (!strcmp(command, "exit"));
     
     return 0;
@@ -173,7 +174,36 @@ char searchDir(char* path, char parentIndex) { // return the index of the last d
 }
 
 char searchParent(char currentDirectory) {
+    if (currentDirectory == 0xFF) {
+        return currentDirectory;
+    } else {
+        char dirs[SECTOR_SIZE];
+        readSector(dirs, DIRS_SECTOR);
+        return dirs[currentDirectory * DIRS_ENTRY_LENGTH];
+    }
+}
+
+void printCurDir(char currentDirectory) {
+    char name[16];
     char dirs[SECTOR_SIZE];
-    readSector(dirs, DIRS_SECTOR);
-    return dirs[currentDirectory * DIRS_ENTRY_LENGTH];
+    int iname = 0;
+    int i;
+
+    if (currentDirectory == 0xFF) {
+        name[0] = 'r';
+        name[1] = 'o';
+        name[2] = 'o';
+        name[3] = 't';
+        name[4] = '\0';
+    } else {
+        readSector(dirs, DIRS_SECTOR);
+        i = (currentDirectory * DIRS_ENTRY_LENGTH) + 1;
+        while (dirs[i] != '\0') {
+            name[iname] = dirs[i];
+            ++i;
+            ++iname;
+        }
+        name[iname] = '\0';
+    }
+    interrupt(0x21, 0x00, name, 0, 0);
 }
