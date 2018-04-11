@@ -33,8 +33,8 @@ ld86 -o programs/shell -d programs/shell.o programs/lib_asm.o
 echo "shell.o and lib_asm.o linked.."
 bcc -ansi -c -o programs/echo.o programs/echo.c
 ld86 -o programs/echo -d programs/echo.o programs/lib_asm.o
-# # Remove the temporary file
-# rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
+# Remove the temporary file
+rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
 
 # # Remove the temporary file
 # rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
