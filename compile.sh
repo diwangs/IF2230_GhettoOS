@@ -24,6 +24,7 @@ ld86 -o source/kernel -d source/kernel.o source/kernel_asm.o
 echo "kernel.o and kernel_asm.o linked.."
 dd if=source/kernel of=floppya.img bs=512 seek=1 conv=notrunc 2> /dev/null
 echo "Kernel loaded.."
+
 # Compile, link, and put the shell
 bcc -ansi -c -o programs/shell.o programs/shell.c
 echo "shell.c compiled.."
@@ -33,6 +34,15 @@ ld86 -o programs/shell -d programs/shell.o programs/lib_asm.o
 echo "shell.o and lib_asm.o linked.."
 bcc -ansi -c -o programs/echo.o programs/echo.c
 ld86 -o programs/echo -d programs/echo.o programs/lib_asm.o
+
+# Compile, link, and put the shell
+bcc -ansi -c -o programs/mkdir.o programs/mkdir.c
+echo "mkdir.c compiled.."
+as86 programs/lib.asm -o programs/lib_asm.o
+echo "lib.asm assembled.."
+ld86 -o programs/mkdir -d programs/mkdir.o programs/lib_asm.o
+echo "shell.o and lib_asm.o linked.."
+
 # Remove the temporary file
 rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
 
@@ -45,5 +55,7 @@ gcc loadFile.c -o loadFile -w
 # cd ..
 ./loadFile shell
 ./loadFile echo
+./loadFile mkdir
+
 
 echo "GhettoOS compiled successfully!"
