@@ -1,5 +1,5 @@
 /*** the kernel's shell ***/
-
+//#include "../../library/library.h"
 // Utility constants
 #define TRUE 1
 #define FALSE 0
@@ -34,37 +34,43 @@ char searchDir(char* path, char parentIndex);
 char searchParent(char currentDirectory);
 void printCurDir(char currentDirectory);
 
-
 int main() {
     char workingdir = 0xFF;            // current directory; default root
     char curdir = workingdir;          // directory yang dipakai untuk execute program
-    char dollar[3];
-    char temp[10];
+    char prefix[3];
+    // char temp[10];
     char input[100];
-    char command[50];       // perintah
+    // char command[50];       // perintah
     char argc;              // jumlah argumen
-    char argv[20][16];      // isi argumen (max 20)
+    //char argv[20][16];      // isi argumen (max 20)
+    char** argv;
     int i;              // indeks string input
-    int j;
-    int argcount;   // jumlah argument count
+    // int j;
+    // int argcount;   // jumlah argument count
     int result;
+    char dirs[SECTOR_SIZE];
 
-    dollar[0] = '$';
-    dollar[1] = ' ';   
-    dollar[2] = '\0'; 
-    do {
+    prefix[0] = '$';
+    prefix[1] = ' ';   
+    prefix[2] = '\0'; 
+    while(1) {
         i = 0;
-        argcount = 0;
-        j = 0;
-        interrupt(0x21, 0x00, dollar, 0, 0);
-        // printString("$ ");
+        argc = 0;
+        argv[0] = '\0';
+        interrupt(0x21, 0x00, prefix, 0, 0);// printString("$ ");
+        interrupt(0x21, 0x01, input, 0, 0); // readString(input);
+        // Chop the spaces, if any
+        while (input[i] != '\0') {
+            if (input[i] == 0x20) { // 0x20 == space
+                argv[argc++] = input + i + 1;
+                input[i] = '\0';
+            }
+            ++i;
+        }
         
-        interrupt(0x21, 0x01, input, 0, 0);
-        // readString(input);
-
         /*** memisahkan perintah dan argumen ***/
        
-        if (input[i] != '\n') {     // ada perintah
+        /*if (input[i] != '\n') {     // ada perintah
             // memperoleh curdir
             if (input[i] == '.') {      // jika di current directory
                 i += 2;
@@ -91,31 +97,42 @@ int main() {
                 argv[argcount][j] = '\0';
                 argcount++;
             }
-        }
+        }*/
 
-        argc = argcount;     
-
-        if (strcmp(command, "cd")) {      // pindah ke folder
-            if (argcount == 0) {
-                // jangan lakukan apa
-            } else if (strcmp(argv[0], "..")) {      // ke parent directory
-                workingdir = searchParent(workingdir);
+        if (strcmp(input, "cd")) {      // pindah ke folder
+            if (argc == 0) {
+                interrupt(0x21, 0x00, "Usage: cd relative_path\r\n", 0, 0);
             } else {            // masuk ke sebuah directory
-                workingdir = searchDir(argv[0], workingdir);
+                if(searchDir(argv[0], workingdir) == 0xFE) {
+                    interrupt(0x21, 0x00, "No such directory\r\n", 0, 0);
+                } else {
+                    workingdir = searchDir(argv[0], workingdir);
+                }
             }
-        } else if (strcmp(command, "pwd")) {
-            printCurDir(workingdir);
-        } else if (!strcmp(command, "exit")) {
+        } else if (strcmp(input, "pwd")) {
+            // printCurDir(workingdir);
+            if (workingdir == 0xFF) {
+                interrupt(0x21, 0x00, "root\r\n", 0, 0);
+            } else {
+                interrupt(0x21, 0x2, dirs, DIRS_SECTOR); // read sector
+                interrupt(0x21, 0x0, dirs + workingdir * DIRS_ENTRY_LENGTH + 1, 0, 0); // print dir name
+                interrupt(0x21, 0x00, "\r\n", 0, 0);
+            }
+        } else {
             interrupt(0x21, 0x20, curdir, argc, argv);                          // taruh argumen
-            interrupt(0x21, (curdir << 8) | 0x06, command, 0x200, &result);     // executeProgram
+            interrupt(0x21, (curdir << 8) | 0x06, input, 0x200, &result);     // executeProgram
         }
-
-        temp[0] = '\n';
-        temp[1] = '\0';
-        interrupt(0x21, 0x00, temp, 0, 0);
-    } while (!strcmp(command, "exit"));
-    
+    }
     return 0;
+}
+
+int strcmp(char* s1, char* s2) {
+    int i = 0;
+    while (!(s1[i] == '\0' && s2[i] == '\0')) {
+        if (s1[i] != s2[i]) return 0;
+        ++i;
+    }
+    return 1;
 }
 
 int mod(int a, int b) { 
@@ -131,16 +148,6 @@ int div(int a, int b) {
 
 void readSector(char *buffer, int sector) {
     interrupt(0x13, 0x201, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
-}
-
-
-int strcmp(char* s1, char* s2) {
-    int i = 0;
-    while (!(s1[i] == '\0' && s2[i] == '\0')) {
-        if (s1[i] != s2[i]) return 0;
-        ++i;
-    }
-    return 1;
 }
 
 char searchDir(char* path, char parentIndex) { // return the index of the last dirs
@@ -183,7 +190,7 @@ char searchParent(char currentDirectory) {
     }
 }
 
-void printCurDir(char currentDirectory) {
+/*void printCurDir(char currentDirectory) {
     char name[16];
     char dirs[SECTOR_SIZE];
     int iname = 0;
@@ -195,6 +202,7 @@ void printCurDir(char currentDirectory) {
         name[2] = 'o';
         name[3] = 't';
         name[4] = '\0';
+        
     } else {
         readSector(dirs, DIRS_SECTOR);
         i = (currentDirectory * DIRS_ENTRY_LENGTH) + 1;
@@ -206,4 +214,5 @@ void printCurDir(char currentDirectory) {
         name[iname] = '\0';
     }
     interrupt(0x21, 0x00, name, 0, 0);
-}
+    interrupt(0x21, 0x00, "\r\n", 0, 0);    
+}*/
