@@ -55,30 +55,38 @@ void executeProgram(char *path, int segment, int *result, char parentIndex); // 
 void terminateProgram(int* result); 
 
 int main() {		
-	int* result;
-	char buf[512];
-	char test1[4], test2[4];
-	char* arg[2];
-	test1[0] = '0';
-	test1[1] = '2';
-	//test1[2] = '\0';
-	test2[0] = '1';
-	test2[1] = '2';
-	//test2[2] = '\0';
-	arg[0] = test1;
-	arg[1] = test2;
+	// int* result;
+	// char buf[512];
+	// char test1[4], test2[4];
+	// char* arg[2];
+	int success;
+
+	// test1[0] = '0';
+	// test1[1] = '2';
+	// //test1[2] = '\0';
+	// test2[0] = '1';
+	// test2[1] = '2';
+	// //test2[2] = '\0';
+	// arg[0] = test1;
+	// arg[1] = test2;
+
 	makeInterrupt21();
 	
 	//putArgs(0xFF, 2, arg);
 	//executeProgram("keyproc2", 0x2000, result, 0xFF);
 	//terminateProgram(result);
-	makeDirectory("folder", result, 0xFF);
-	makeDirectory("folder/subfolder", result, 0xFF);	
-	writeFile("Hello", "folder/subfolder/test", result, 0xFF);
-	readFile(buf, "test", result, 0x01);
-	printString(buf);
-	writeFile("Hello", "folder/subfolder/test", result, 0xFF);
-	if(*result) printString("Fail");	
+
+	// makeDirectory("folder", result, 0xFF);
+	// makeDirectory("folder/subfolder", result, 0xFF);	
+	// writeFile("Hello", "folder/subfolder/test", result, 0xFF);
+	// readFile(buf, "test", result, 0x01);
+	// printString(buf);
+	// writeFile("Hello", "folder/subfolder/test", result, 0xFF);
+	// if(*result) printString("Fail");
+
+	interrupt(0x21, 0xFF << 8 | 0x06, "shell", 0x2000, &success);
+
+	// printString("shell executed");
 	while(1) {}
 }
 
@@ -146,8 +154,8 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 void printString(char *string) { // Works like println
 	int i = 0;
 	while (string[i] != '\0') interrupt(0x10, 0xE00 + string[i++], 0, 0, 0);
-	interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
-	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
+	// interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
+	// interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
 void printInt(int i) {
