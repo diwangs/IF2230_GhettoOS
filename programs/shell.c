@@ -52,6 +52,7 @@ int main() {
     dollar[1] = ' ';   
     dollar[2] = '\0'; 
     do {
+        i=0; j=0;
         interrupt(0x21, 0x00, dollar, 0, 0);
         // printString("$ ");
         
@@ -90,6 +91,8 @@ int main() {
         }
 
         argc = argcount;     
+        //interrupt(0x21, 0x00, argv[0], 0, 0);    
+        //interrupt(0x21, 0x00, "\n\r\0", 0, 0);                      
 
         if (strcmp(command, "cd")) {      // pindah ke folder
             if (argv[0] == ".." && workingdir != 0xFF) {      // ke parent directory
@@ -97,16 +100,18 @@ int main() {
             } else {            // masuk ke sebuah directory
                 workingdir = searchDir(argv[0], workingdir);
             }
+            interrupt(0x21, 0x00, "combrotmui", 0, 0);    
+            interrupt(0x21, 0x00, "\n\r\0", 0, 0);       
         } else if (strcmp(command, "pwd")) {
 
         } else if (!strcmp(command, "exit")) {                    // 
-            interrupt(0x21, 0x20, curdir, argc, argv);                          // taruh argumen
+            interrupt(0x21, 0x20, curdir, argc, argv);                        // taruh argumen
             interrupt(0x21, (curdir << 8) | 0x06, command, 0x200, &result);     // executeProgram
-        }
+        } 
 
-        temp[0] = '\n';
-        temp[1] = '\0';
-        interrupt(0x21, 0x00, temp, 0, 0);
+        //temp[0] = '\n';
+        //temp[1] = '\0';
+        //interrupt(0x21, 0x00, temp, 0, 0);       
     } while (!strcmp(command, "exit"));
     
     return 0;

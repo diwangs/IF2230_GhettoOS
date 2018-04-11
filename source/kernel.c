@@ -57,17 +57,17 @@ void terminateProgram(int* result);
 int main() {		
 	int* result;
 	char buf[512];
-	// char test1[4], test2[4];
-	// char* arg[2];
+	char test1[4], test2[4];
+	char* arg[1];
 	int success;
 
-	// test1[0] = '0';
-	// test1[1] = '2';
-	// //test1[2] = '\0';
+	//test1[0] = '0';
+	//test1[1] = '2';
+	//test1[2] = '\0';
 	// test2[0] = '1';
 	// test2[1] = '2';
 	// //test2[2] = '\0';
-	// arg[0] = test1;
+	//arg[0] = test1;
 	// arg[1] = test2;
 
 	makeInterrupt21();
@@ -76,6 +76,10 @@ int main() {
 	//executeProgram("keyproc2", 0x2000, result, 0xFF);
 	//terminateProgram(result);
 	//readString(buf);
+	//printString(buf);
+
+	//putArgs(0xFF, 1, arg);
+	//getArgv(0, buf);
 	//printString(buf);
 
 	makeDirectory("folder", result, 0xFF);
