@@ -43,6 +43,22 @@ echo "lib.asm assembled.."
 ld86 -o programs/mkdir -d programs/mkdir.o programs/lib_asm.o
 echo "shell.o and lib_asm.o linked.."
 
+# Compile, link, and put the shell
+bcc -ansi -c -o programs/ls.o programs/ls.c
+echo "ls.c compiled.."
+as86 programs/lib.asm -o programs/lib_asm.o
+echo "lib.asm assembled.."
+ld86 -o programs/ls -d programs/ls.o programs/lib_asm.o
+echo "shell.o and lib_asm.o linked.."
+
+# Compile, link, and put the shell
+bcc -ansi -c -o programs/rm.o programs/rm.c
+echo "rm.c compiled.."
+as86 programs/lib.asm -o programs/lib_asm.o
+echo "lib.asm assembled.."
+ld86 -o programs/rm -d programs/rm.o programs/lib_asm.o
+echo "shell.o and lib_asm.o linked.."
+
 # Remove the temporary file
 rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
 
@@ -56,6 +72,7 @@ gcc loadFile.c -o loadFile -w
 ./loadFile shell
 ./loadFile echo
 ./loadFile mkdir
-
+./loadFile ls
+./loadFile rm
 
 echo "GhettoOS compiled successfully!"
