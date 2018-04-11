@@ -83,11 +83,11 @@ int main() {
     
 
     if (command == "cd") {      // pindah ke folder
-        if (argv[0] == "..") {      // ke parent directory
-
-        } else {            // masuk ke sebuah directory
-            workingdir = searchPath(argv[0], workingdir);
-        }
+        // if (argv[0] == "..") {      // ke parent directory
+        //     workingdir = searchParent(workingdir);
+        // } else {            // masuk ke sebuah directory
+        //     workingdir = searchDir(argv[0], workingdir);
+        // }
     } else if (command == "pwd") {
 
     } else {                    // 
@@ -102,7 +102,7 @@ int main() {
 //     interrupt(0x13, 0x201, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
 // }
 
-// char searchPath(char* path, char parentIndex) { // return the index of the last dirs
+// char searchDir(char* path, char parentIndex) { // return the index of the last dirs
 //     char dirs[SECTOR_SIZE], cur_parent;
 //     int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, found = 0;
 //     readSector(dirs, DIRS_SECTOR);  
@@ -134,7 +134,6 @@ int main() {
 
 // char searchParent(char currentDirectory) {
 //     char dirs[SECTOR_SIZE];
-//     readSector(dirs, DIRS_SECTOR);  
-//     dirsname_offset = 0;
-//     cur_parent = parentIndex;
+//     readSector(dirs, DIRS_SECTOR);
+//     return dirs[currentDirectory * DIRS_ENTRY_LENGTH];
 // }
