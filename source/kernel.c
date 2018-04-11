@@ -55,7 +55,7 @@ void executeProgram(char *path, int segment, int *result, char parentIndex); // 
 void terminateProgram(int* result); 
 
 int main() {		
-	// int* result;
+	int* result;
 	// char buf[512];
 	// char test1[4], test2[4];
 	// char* arg[2];
@@ -76,8 +76,8 @@ int main() {
 	//executeProgram("keyproc2", 0x2000, result, 0xFF);
 	//terminateProgram(result);
 
-	// makeDirectory("folder", result, 0xFF);
-	// makeDirectory("folder/subfolder", result, 0xFF);	
+	makeDirectory("folder", result, 0xFF);
+	makeDirectory("folder/subfolder", result, 0xFF);	
 	// writeFile("Hello", "folder/subfolder/test", result, 0xFF);
 	// readFile(buf, "test", result, 0x01);
 	// printString(buf);
@@ -85,6 +85,7 @@ int main() {
 	// if(*result) printString("Fail");
 
 	interrupt(0x21, 0xFF << 8 | 0x06, "shell", 0x2000, &success);
+	terminateProgram(success);
 
 	// printString("shell executed");
 	while(1) {}
