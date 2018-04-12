@@ -23,7 +23,7 @@
 #define FILES_SECTOR 258
 #define SECTORS_SECTOR 259
 #define ARGS_SECTOR 512*/
-#include "../library/constants.h"
+#include "../library/declaration/constants.h"
 
 void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
 // Utility
@@ -196,8 +196,8 @@ void clear(char *buffer, int length) {
 	int i;
 	for (i = 0; i < length; ++i) buffer[i] = EMPTY;
 }*/
-
-int findUnusedSector (char *map) {
+#include "../library/fsutils.h"
+/*int findUnusedSector (char *map) {
   int i;
   for (i = 0; i < MAX_BYTE; ++i) {
     if (map[i] == 0x00) {
@@ -220,7 +220,8 @@ int findUnusedEntry (char *entries) {
 char searchPath(char* path, char parentIndex) { // return the index of the last dirs
 	char dirs[SECTOR_SIZE], cur_parent;
 	int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, found = 0;
-	readSector(dirs, DIRS_SECTOR);	
+	// readSector(dirs, DIRS_SECTOR);	
+    interrupt(0x21, 0x2, dirs, DIRS_SECTOR); // readSector itu interrupt	
 	dirsname_offset = 0;
 	cur_parent = parentIndex;
 	do { 
@@ -245,9 +246,9 @@ char searchPath(char* path, char parentIndex) { // return the index of the last 
 		cur_parent = dirs_offset;
 	} while (path[dirsname_offset_chkp - 1] != '\0');
 	return cur_parent;
-}
+}*/
 
-char searchFile(char* filename, char dir_index) {
+/*char searchFile(char* filename, char dir_index) {
 	char files[SECTOR_SIZE];
 	int files_offset = 0, filesname_offset = 0;
 	readSector(files, FILES_SECTOR);
@@ -260,7 +261,7 @@ char searchFile(char* filename, char dir_index) {
 		++files_offset;
 	} while (files_offset < MAX_FILES);
 	return files_offset;
-}
+}*/
 
 void printCenter(int row, int ln, char* s){
 	 int i = 0;

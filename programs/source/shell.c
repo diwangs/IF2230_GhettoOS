@@ -8,7 +8,7 @@
 #define INSUFFICIENT_DIR_ENTRIES -1
 #define EMPTY 0x00
 #define USED 0xFF
-// File System Constants
+// File System Constantscd
 #define MAX_BYTE 256
 #define SECTOR_SIZE 512
 #define MAX_FILES 16
@@ -25,12 +25,10 @@
 #define FILES_SECTOR 258
 #define SECTORS_SECTOR 259
 #define ARGS_SECTOR 512*/
-#include "../../library/constants.h"
+#include "../../library/declaration/constants.h"
 
-//void readSector(char *buffer, int sector);
-char searchDir(char* path, char parentIndex);
-//char searchParent(char currentDirectory);
-//void printCurDir(char currentDirectory);
+char searchPath(char* path, char parentIndex);
+//#include "../../library/declaration/fsutils_dec.h"
 
 int main() {
     char workingdir = 0xFF;            // current directory; default root
@@ -54,7 +52,7 @@ int main() {
     while(1) {
         i = 0;
         argc = 0;
-        argv[0] = '\0';
+        // argv[0] = '\0';
         interrupt(0x21, 0x00, prefix, 0, 0);// printString("$ ");
         interrupt(0x21, 0x01, input, 0, 0); // readString(input);
         // Chop the spaces, if any
@@ -101,10 +99,10 @@ int main() {
             if (argc == 0) {
                 interrupt(0x21, 0x00, "Usage: cd relative_path\r\n", 0, 0);
             } else {            // masuk ke sebuah directory
-                if(searchDir(argv[0], workingdir) == 0xFE) {
+                if(searchPath(argv[0], workingdir) == 0xFE) {
                     interrupt(0x21, 0x00, "No such directory\r\n", 0, 0);
                 } else {
-                    workingdir = searchDir(argv[0], workingdir);
+                    workingdir = searchPath(argv[0], workingdir);
                 }
             }
         } else if (strcmp(input, "pwd")) {
@@ -150,7 +148,8 @@ int div(int a, int b) {
     interrupt(0x13, 0x201, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
 }*/
 
-char searchDir(char* path, char parentIndex) { // return the index of the last dirs
+#include "../../library/fsutils.h"
+/*char searchDir(char* path, char parentIndex) { // return the index of the last dirs
     char dirs[SECTOR_SIZE], cur_parent;
     int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, found = 0;
     interrupt(0x21, 0x2, dirs, DIRS_SECTOR); // readSector itu interrupt
@@ -178,7 +177,7 @@ char searchDir(char* path, char parentIndex) { // return the index of the last d
         cur_parent = dirs_offset;
     } while (path[dirsname_offset_chkp - 1] != '\0');
     return cur_parent;
-}
+}*/
 
 /*char searchParent(char currentDirectory) {
     if (currentDirectory == 0xFF) {
