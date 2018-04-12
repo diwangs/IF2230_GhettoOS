@@ -9,21 +9,23 @@
 #define EMPTY 0x00
 #define USED 0xFF
 // File System Constants
-#define MAX_BYTE 256
 #define SECTOR_SIZE 512
-#define MAX_FILES 16
-#define MAX_FILENAME 15
-#define MAX_SECTORS 20
-#define MAX_ENTRIES 32
-#define ENTRY_LENGTH 16
-#define NAME_OFFSET 1
-#define DIRS_ENTRY_LENGTH 16
-#define FILES_ENTRY_LENGTH 16
-#define SECTORS_ENTRY_LENGTH 16
 #define MAP_SECTOR 256
 #define DIRS_SECTOR 257
 #define FILES_SECTOR 258
 #define SECTORS_SECTOR 259
 #define ARGS_SECTOR 512
+#define DIRS_ENTRY_LENGTH 16
+#define FILES_ENTRY_LENGTH 16
+#define SECTORS_ENTRY_LENGTH 16
+#define MAX_DIRS 32
+#define MAX_FILES 32
+#define MAX_SECTORS 32
+// Yg bawah ini harusnya udah gak kepake
+#define NAME_OFFSET 1
+#define ENTRY_LENGTH 16
+#define MAX_ENTRIES 32
+#define MAX_FILENAME 15
+#define MAX_BYTE 256
 
 #endif
