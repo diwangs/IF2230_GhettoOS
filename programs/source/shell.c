@@ -1,7 +1,7 @@
 /*** the kernel's shell ***/
 //#include "../../library/library.h"
 // Utility constants
-#define TRUE 1
+/*#define TRUE 1
 #define FALSE 0
 #define INSUFFICIENT_SECTORS 0
 #define NOT_FOUND -1
@@ -24,15 +24,13 @@
 #define DIRS_SECTOR 257
 #define FILES_SECTOR 258
 #define SECTORS_SECTOR 259
-#define ARGS_SECTOR 512
+#define ARGS_SECTOR 512*/
+#include "../../library/constants.h"
 
-int mod(int a, int b);
-int div(int a, int b);
-int strcmp(char* s1, char* s2);
-void readSector(char *buffer, int sector);
+//void readSector(char *buffer, int sector);
 char searchDir(char* path, char parentIndex);
-char searchParent(char currentDirectory);
-void printCurDir(char currentDirectory);
+//char searchParent(char currentDirectory);
+//void printCurDir(char currentDirectory);
 
 int main() {
     char workingdir = 0xFF;            // current directory; default root
@@ -126,7 +124,7 @@ int main() {
     return 0;
 }
 
-int strcmp(char* s1, char* s2) {
+/*int strcmp(char* s1, char* s2) {
     int i = 0;
     while (!(s1[i] == '\0' && s2[i] == '\0')) {
         if (s1[i] != s2[i]) return 0;
@@ -144,16 +142,18 @@ int div(int a, int b) {
     int q = 0;
     while (q * b <= a) q += 1;
     return q - 1;
-}
+}*/
+#include "../../library/math.h"
+#include "../../library/strutils.h"
 
-void readSector(char *buffer, int sector) {
+/*void readSector(char *buffer, int sector) {
     interrupt(0x13, 0x201, buffer, div(sector, 36) * 0x100 + mod(sector, 18) + 1, mod(div(sector, 18), 2) * 0x100);
-}
+}*/
 
 char searchDir(char* path, char parentIndex) { // return the index of the last dirs
     char dirs[SECTOR_SIZE], cur_parent;
     int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, found = 0;
-    readSector(dirs, DIRS_SECTOR);  
+    interrupt(0x21, 0x2, dirs, DIRS_SECTOR); // readSector itu interrupt
     dirsname_offset = 0;
     cur_parent = parentIndex;
     do { 
@@ -180,15 +180,15 @@ char searchDir(char* path, char parentIndex) { // return the index of the last d
     return cur_parent;
 }
 
-char searchParent(char currentDirectory) {
+/*char searchParent(char currentDirectory) {
     if (currentDirectory == 0xFF) {
         return currentDirectory;
     } else {
         char dirs[SECTOR_SIZE];
-        readSector(dirs, DIRS_SECTOR);
+        interrupt(0x21, 0x2, dirs, DIRS_SECTOR);
         return dirs[currentDirectory * DIRS_ENTRY_LENGTH];
     }
-}
+}*/
 
 /*void printCurDir(char currentDirectory) {
     char name[16];

@@ -1,7 +1,5 @@
-
-
 // Utility constants
-#define TRUE 1
+/*#define TRUE 1
 #define FALSE 0
 #define INSUFFICIENT_SECTORS 0
 #define NOT_FOUND -1
@@ -24,17 +22,18 @@
 #define DIRS_SECTOR 257
 #define FILES_SECTOR 258
 #define SECTORS_SECTOR 259
-#define ARGS_SECTOR 512
+#define ARGS_SECTOR 512*/
+#include "../library/constants.h"
 
 void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
 // Utility
 void printString(char *string);
 void printInt(int i);
 void readString(char *string);
-int strcmp(char* s1, char* s2);
+/*int strcmp(char* s1, char* s2);
 int mod(int a, int b); // Fucking bcc can't understand / and %
 int div(int a, int b);
-void clear(char *buffer, int length);
+void clear(char *buffer, int length);*/
 int findUnusedSector (char *map);
 int findUnusedEntry (char *entries);
 void printLogo();
@@ -49,10 +48,10 @@ void deleteFile(char *path, int *result, char parentIndex);
 void makeDirectory(char *path, int *result, char parentIndex);
 void deleteDirectory(char *path, int *success, char parentIndex); 
 // Execute a Program
+void putArgs (char curdir, char argc, char **argv);
 void getCurdir (char *curdir);
 void getArgc (char *argc);
 void getArgv (char index, char *argv);
-void putArgs (char curdir, char argc, char **argv);
 void executeProgram(char *path, int segment, int *result, char parentIndex); // segment = 0x2000
 void terminateProgram(int* result); 
 
@@ -62,40 +61,11 @@ int main() {
 	char test1[4], test2[4];
 	char* arg[1];
 	int success;
-
-	//test1[0] = '0';
-	//test1[1] = '2';
-	//test1[2] = '\0';
-	// test2[0] = '1';
-	// test2[1] = '2';
-	// //test2[2] = '\0';
-	//arg[0] = test1;
-	// arg[1] = test2;
-
 	makeInterrupt21();
-	
-	//putArgs(0xFF, 2, arg);
-	//executeProgram("keyproc2", 0x2000, result, 0xFF);
-	//terminateProgram(result);
-	//readString(buf);
-	//printString(buf);
-
-	//putArgs(0xFF, 1, arg);
-	//getArgv(0, buf);
-	//printString(buf);
-
 	makeDirectory("folder", result, 0xFF);
 	makeDirectory("folder/subfolder", result, 0xFF);	
-	// writeFile("Hello", "folder/subfolder/test", result, 0xFF);
-	// readFile(buf, "test", result, 0x01);
-	// printString(buf);
-	// writeFile("Hello", "folder/subfolder/test", result, 0xFF);
-	// if(*result) printString("Fail");
-
 	interrupt(0x21, 0xFF << 8 | 0x06, "shell", 0x2000, &success);
 	terminateProgram(success);
-
-	// printString("shell executed");
 	while(1) {}
 }
 
@@ -199,7 +169,10 @@ void readString(char *string) {
 	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
-int strcmp(char* s1, char* s2) {
+#include "../library/math.h"
+#include "../library/strutils.h"
+
+/*int strcmp(char* s1, char* s2) {
 	int i = 0;
 	while (!(s1[i] == '\0' && s2[i] == '\0')) {
 		if (s1[i] != s2[i]) return 0;
@@ -222,7 +195,7 @@ int div(int a, int b) {
 void clear(char *buffer, int length) {
 	int i;
 	for (i = 0; i < length; ++i) buffer[i] = EMPTY;
-}
+}*/
 
 int findUnusedSector (char *map) {
   int i;
