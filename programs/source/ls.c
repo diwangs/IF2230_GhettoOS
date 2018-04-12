@@ -35,9 +35,7 @@ void main() {
     char buff[MAX_FILENAME + 1];
     char dirs[SECTOR_SIZE];
     char files[SECTOR_SIZE];
-    
-	interrupt(0x21, 0x08, "folder", result, 0xFF);
-	interrupt(0x21, 0x08, "folder/subfolder", result, 0xFF);	
+    	
     interrupt(0x21, 0x21, &curdir, 0, 0);
     interrupt(0x21, 0x22, &argc, 0, 0);
     for (i = 0; i < argc; i++) {
@@ -45,7 +43,7 @@ void main() {
     }
     interrupt(0x21, 0x02, dirs, DIRS_SECTOR);
     interrupt(0x21, 0x02, files, FILES_SECTOR);
-    interrupt(0x21, 0x0, "List of Directories:\n", 0, 0);
+    interrupt(0x21, 0x0, "List of Directories:\r\n", 0, 0);
     for (i = 0; i < MAX_DIRS; i++) {
         if ((dirs[i * ENTRY_LENGTH + 1] != '\0') && (dirs[i * ENTRY_LENGTH] == curdir)) {
             j = 0;
@@ -56,10 +54,10 @@ void main() {
             buff[j] = '\0';
             interrupt(0x21, 0x0, " - ", 0, 0);
             interrupt(0x21, 0x0, buff, 0, 0);
-            interrupt(0x21, 0x0, "\n", 0, 0);
+            interrupt(0x21, 0x0, "\r\n", 0, 0);
         }
     }
-    interrupt(0x21, 0x0, "List of Files:\n", 0, 0);
+    interrupt(0x21, 0x0, "List of Files:\r\n", 0, 0);
     for (i = 0; i < MAX_FILES; i++) {
         if ((files[i * ENTRY_LENGTH + 1] != '\0') && (files[i * ENTRY_LENGTH] == curdir)) {
             j = 0;
@@ -70,8 +68,8 @@ void main() {
             buff[j] = '\0';
             interrupt(0x21, 0x0, " - ", 0, 0);
             interrupt(0x21, 0x0, buff, 0, 0);
-            interrupt(0x21, 0x0, "\n", 0, 0);
+            interrupt(0x21, 0x0, "\r\n", 0, 0);
         }
     }
-    interrupt(0x21, (0x00 << 8) | 0x07, &succ, 0, 0);
+    interrupt(0x21, (0xFF << 8) | 0x06, "shell", 0x2000, &succ);
 }
