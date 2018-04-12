@@ -3,6 +3,8 @@
 #include "declaration/constants.h"
 #include "strutils.h"
 
+// Requires interrupt (lib.asm)
+
 int findUnusedSector (char *map) {
   int i;
   for (i = 0; i < MAX_BYTE; ++i) {
