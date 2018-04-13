@@ -1,28 +1,3 @@
-// Utility constants
-/*#define TRUE 1
-#define FALSE 0
-#define INSUFFICIENT_SECTORS 0
-#define NOT_FOUND -1
-#define INSUFFICIENT_DIR_ENTRIES -1
-#define EMPTY 0x00
-#define USED 0xFF
-// File System Constants
-#define MAX_BYTE 256
-#define SECTOR_SIZE 512
-#define MAX_FILES 16
-#define MAX_FILENAME 15
-#define MAX_SECTORS 20
-#define MAX_ENTRIES 32
-#define ENTRY_LENGTH 16
-#define NAME_OFFSET 1
-#define DIRS_ENTRY_LENGTH 16
-#define FILES_ENTRY_LENGTH 16
-#define SECTORS_ENTRY_LENGTH 16
-#define MAP_SECTOR 256
-#define DIRS_SECTOR 257
-#define FILES_SECTOR 258
-#define SECTORS_SECTOR 259
-#define ARGS_SECTOR 512*/
 #include "../library/declaration/constants.h"
 
 void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
@@ -30,15 +5,10 @@ void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
 void printString(char *string);
 void printInt(int i);
 void readString(char *string);
-/*int strcmp(char* s1, char* s2);
-int mod(int a, int b); // Fucking bcc can't understand / and %
-int div(int a, int b);
-void clear(char *buffer, int length);*/
-int findUnusedSector (char *map);
-int findUnusedEntry (char *entries);
+#include "../library/declaration/math_dec.h"
+#include "../library/declaration/strutils_dec.h"
+#include "../library/declaration/fsutils_dec.h"
 void printLogo();
-char searchPath(char* path, char parentIndex);
-char searchFile(char* filename, char dir_index);
 // File System
 void readSector(char *buffer, int sector);
 void writeSector(char *buffer, int sector);
@@ -171,97 +141,7 @@ void readString(char *string) {
 
 #include "../library/math.h"
 #include "../library/strutils.h"
-
-/*int strcmp(char* s1, char* s2) {
-	int i = 0;
-	while (!(s1[i] == '\0' && s2[i] == '\0')) {
-		if (s1[i] != s2[i]) return 0;
-		++i;
-	}
-	return 1;
-}
-
-int mod(int a, int b) { 
-	while (a >= b) a -= b;
-	return a;
-}
-
-int div(int a, int b) {
-	int q = 0;
-	while (q * b <= a) q += 1;
-	return q - 1;
-}
-
-void clear(char *buffer, int length) {
-	int i;
-	for (i = 0; i < length; ++i) buffer[i] = EMPTY;
-}*/
 #include "../library/fsutils.h"
-/*int findUnusedSector (char *map) {
-  int i;
-  for (i = 0; i < MAX_BYTE; ++i) {
-    if (map[i] == 0x00) {
-      return i;
-    }
-  }
-  return NOT_FOUND;
-}
-
-int findUnusedEntry (char *entries) {
-	int i;
-	for (i = 0; i < MAX_ENTRIES; ++i) {
-		if (entries[i * ENTRY_LENGTH + NAME_OFFSET] == '\0') {
-			return i;
-		}
-	}
-	return NOT_FOUND;
-}
-
-char searchPath(char* path, char parentIndex) { // return the index of the last dirs
-	char dirs[SECTOR_SIZE], cur_parent;
-	int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, found = 0;
-	// readSector(dirs, DIRS_SECTOR);	
-    interrupt(0x21, 0x2, dirs, DIRS_SECTOR); // readSector itu interrupt	
-	dirsname_offset = 0;
-	cur_parent = parentIndex;
-	do { 
-		found = 0;
-		// Search for dirs
-		do { 
-			// If the parent directory matches current parent...
-			if (dirs[dirs_offset * DIRS_ENTRY_LENGTH] == cur_parent) { 
-				// Match the directory name
-				found = 1;
-				for (dirsname_offset = 0; dirsname_offset <= MAX_FILES && path[dirsname_offset_chkp + dirsname_offset] != '/' && path[dirsname_offset_chkp + dirsname_offset] != '\0'; ++dirsname_offset) {	
-					if (dirs[(dirs_offset * DIRS_ENTRY_LENGTH) + dirsname_offset + 1] != path[dirsname_offset_chkp + dirsname_offset]) {								
-						found = 0;
-						++dirs_offset;
-						break;
-					} 
-				}
-			} else ++dirs_offset;
-		} while (!found && dirs_offset < MAX_ENTRIES);
-		if (!found) return 0xFE; // If there's no such dirs...
-		dirsname_offset_chkp += dirsname_offset + 1;
-		cur_parent = dirs_offset;
-	} while (path[dirsname_offset_chkp - 1] != '\0');
-	return cur_parent;
-}*/
-
-/*char searchFile(char* filename, char dir_index) {
-	char files[SECTOR_SIZE];
-	int files_offset = 0, filesname_offset = 0;
-	readSector(files, FILES_SECTOR);
-	do {
-		// If the parent directory matches current parent...
-		if (files[files_offset * FILES_ENTRY_LENGTH] == dir_index) { 
-			// Match the file name
-			if(strcmp(files + files_offset * FILES_ENTRY_LENGTH + 1, filename)) break;
-		} 
-		++files_offset;
-	} while (files_offset < MAX_FILES);
-	return files_offset;
-}*/
 
 void printCenter(int row, int ln, char* s){
 	 int i = 0;

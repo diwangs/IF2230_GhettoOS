@@ -67,12 +67,11 @@ ld86 -o ls -d ls.o lib.o
 echo "ls.o and lib.o linked"
 ./loadFile ls
 rm ls.o ls
-
 # Compile, link, and put the shell
 bcc -ansi -c -o rm.o source/rm.c
 echo "rm.c compiled"
 ld86 -o rm -d rm.o lib.o
-echo "shell.o and lib.o linked.."
+echo "rm.o and lib.o linked"
 ./loadFile rm
 rm rm.o rm
 
