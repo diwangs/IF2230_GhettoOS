@@ -29,7 +29,6 @@ void main() {
     int* result;
     int i, j;
     char curdir;
-    char argc;
     char argv[4][16];
     int succ;
     char buff[MAX_FILENAME + 1];
@@ -37,10 +36,6 @@ void main() {
     char files[SECTOR_SIZE];
     	
     interrupt(0x21, 0x21, &curdir, 0, 0);
-    interrupt(0x21, 0x22, &argc, 0, 0);
-    for (i = 0; i < argc; i++) {
-        interrupt(0x21, 0x23, i, argv[i], 0);
-    }
     interrupt(0x21, 0x02, dirs, DIRS_SECTOR);
     interrupt(0x21, 0x02, files, FILES_SECTOR);
     interrupt(0x21, 0x0, "List of Directories:\r\n", 0, 0);
@@ -71,5 +66,5 @@ void main() {
             interrupt(0x21, 0x0, "\r\n", 0, 0);
         }
     }
-    interrupt(0x21, (0xFF << 8) | 0x06, "shell", 0x2000, &succ);
+    interrupt(0x21, (curdir << 8) | 0x06, "shell", 0x2000, result);
 }

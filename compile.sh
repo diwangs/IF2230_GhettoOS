@@ -31,9 +31,11 @@ rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
 cd programs
 gcc source/_loadFile.c -o loadFile -w
 echo "loadFile compiled"
+
 # Assemble lib.asm
 as86 source/lib.asm -o lib.o
 echo "lib.asm assembled"
+
 # Compile, link, and load the shell
 bcc -ansi -c -o shell.o source/shell.c
 echo "shell.c compiled"
@@ -41,6 +43,7 @@ ld86 -o shell -d shell.o lib.o
 echo "shell.o and lib.o linked"
 ./loadFile shell
 rm shell.o shell
+
 # Compile, link, and load echo
 bcc -ansi -c -o echo.o source/echo.c
 echo "echo.c compiled"
@@ -48,6 +51,7 @@ ld86 -o echo -d echo.o lib.o
 echo "echo.o and lib.o linked"
 ./loadFile echo
 rm echo.o echo
+
 # Compile, link, and load mkdir
 bcc -ansi -c -o mkdir.o source/mkdir.c
 echo "mkdir.c compiled"
@@ -55,6 +59,7 @@ ld86 -o mkdir -d mkdir.o lib.o
 echo "mkdir.o and lib.o linked"
 ./loadFile mkdir
 rm mkdir.o mkdir
+
 # Compile, link, and load ls
 bcc -ansi -c -o ls.o source/ls.c
 echo "ls.c compiled"
