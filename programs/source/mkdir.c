@@ -11,11 +11,9 @@ void main() {
     char mode = 0;
     interrupt(0x21, 0x21, &curdir, 0, 0);
     interrupt(0x21, 0x22, &argc, 0, 0);
-	interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);
 
 	interrupt(0x21, 0x23, 0, argv[0], 0);
     if (argc > 0) {
-		interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);
         interrupt(0x21, (curdir << 8) | 0x08, argv[0], &succ, 0);
         if (succ == ALREADY_EXISTS) {
             interrupt(0x21, 0x0, "Directory exists.\r\n", 0, 0); 
