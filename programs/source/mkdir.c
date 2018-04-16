@@ -12,10 +12,7 @@ void main() {
     interrupt(0x21, 0x21, &curdir, 0, 0);
     interrupt(0x21, 0x22, &argc, 0, 0);
 	interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);
-    // for (i = 0; i < argc; i++) {
-	// 	interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);
-    //     interrupt(0x21, 0x23, i, argv[i], 0);
-    // }
+
 	interrupt(0x21, 0x23, 0, argv[0], 0);
     if (argc > 0) {
 		interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);

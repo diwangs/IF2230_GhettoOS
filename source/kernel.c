@@ -231,7 +231,7 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	map_offset = findUnusedSector(map);
 	// If there's no empty sectors
 	if (map_offset == NOT_FOUND) {
-		*sectors = 0x00;
+		*result = 0x00;
 		return;
 	}
 	// Search for empty file entry
