@@ -1,32 +1,30 @@
-void printInt(int i);
-int mod(int a, int b);
-int div(int a, int b);
+#include "../../library/declaration/constants.h"
 
-int main() {
-    char dirname[100], argc;
+void main() {
+	int i;
+    char curdir;
+    char argc;
+    char argv[4][32];
+    int succ;
+    char buff[MAX_FILENAME + 1];	
+    char dest;
+    char mode = 0;
+    interrupt(0x21, 0x21, &curdir, 0, 0);
     interrupt(0x21, 0x22, &argc, 0, 0);
-    interrupt(0x21, 0x23, argc, dirname, 0);
-    interrupt(0x21, 0x0, dirname, 0, 0);
-}
-
-void printInt(int i) {
-	char ir = '0' + (char) div(i, 100);
-	char ip = '0' + (char) div(mod(i, 100), 10);
-	char is = '0' + (char) mod(i, 10);
-	interrupt(0x10, 0xE00 + ir, 0, 0, 0);
-	interrupt(0x10, 0xE00 + ip, 0, 0, 0);
-	interrupt(0x10, 0xE00 + is, 0, 0, 0);
-	interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
-	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
-}
-
-int mod(int a, int b) { 
-	while (a >= b) a -= b;
-	return a;
-}
-
-int div(int a, int b) {
-	int q = 0;
-	while (q * b <= a) q += 1;
-	return q - 1;
+	interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);
+    // for (i = 0; i < argc; i++) {
+	// 	interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);
+    //     interrupt(0x21, 0x23, i, argv[i], 0);
+    // }
+	interrupt(0x21, 0x23, 0, argv[0], 0);
+    if (argc > 0) {
+		interrupt(0x21, 0x0, "HEYY.\r\n", 0, 0);
+        interrupt(0x21, (curdir << 8) | 0x08, argv[0], &succ, 0);
+        if (succ == ALREADY_EXISTS) {
+            interrupt(0x21, 0x0, "Directory exists.\r\n", 0, 0); 
+        } else if (succ == NOT_FOUND) {
+            interrupt(0x21, 0x0, "Directory not found.\r\n", 0, 0); 
+        }
+    }
+    interrupt(0x21, (curdir << 8) | 0x06, "shell", 0x2000, &succ);
 }

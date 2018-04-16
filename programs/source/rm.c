@@ -1,14 +1,15 @@
 void main() {
 	char curdir;
 	char argc;
-	char *argv[100], succ;
+	char *argv[100], dirSucc, fileSucc, succ;
 	interrupt(0x21, 0x21, &curdir, 0, 0);
 	interrupt(0x21, 0x22, &argc, 0, 0);
+	interrupt(0x21, 0x23, 0, argv[0], 0);
 	if (argc > 0) {
-		interrupt(0x21, 0x23, 0, argv[0], 0);
 		// Try deleting file
 		interrupt(0x21, curdir << 8 | 0x09, argv[0], &succ, 0);
 		if (succ != 0)
+			// interrupt(0x21, 0x23, 0, argv[0], 0);
 			// Try deleting dir
 			interrupt(0x21, curdir << 8 | 0x0A, argv[0], &succ, 0);
 		if (succ != 0)

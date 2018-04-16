@@ -8,6 +8,8 @@
 #define INSUFFICIENT_DIR_ENTRIES -1
 #define EMPTY 0x00
 #define USED 0xFF
+#define ALREADY_EXISTS -2
+#define NOT_FOUND -1
 // File System Constants
 #define SECTOR_SIZE 512
 #define MAP_SECTOR 256
