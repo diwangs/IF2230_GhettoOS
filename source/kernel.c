@@ -28,14 +28,13 @@ void terminateProgram(int* result);
 int main() {		
 	int* result;
 	char buf[512];
-	char test1[4], test2[4];
-	char* arg[1];
-	int success;
+	char arg1[4], arg2[4];
+	char* arg[2]; // arg = array of array of char = array of string
 	makeInterrupt21();
 	makeDirectory("folder", result, 0xFF);
-	makeDirectory("folder/subfolder", result, 0xFF);	
-	interrupt(0x21, 0xFF << 8 | 0x06, "shell", 0x2000, &success);
-	terminateProgram(success);
+	makeDirectory("folder/subfolder", result, 0xFF);
+	interrupt(0x21, 0xFF << 8 | 0x06, "shell", 0x2000, *result);
+	//terminateProgram(success);
 	while(1) {}
 }
 
@@ -374,17 +373,16 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 	if (dirsOffset == 0xFE) {*success = -1; return;}
 	// Delete the file inside the dir, if any
 	readSector(files, FILES_SECTOR);
-	for(files_offset = 0; files_offset < MAX_FILES; ++files_offset) {
-		if (files[files_offset * FILES_ENTRY_LENGTH] == dirsOffset) {
-			files[files_offset * FILES_ENTRY_LENGTH] = '/';
-			deleteFile(files + files_offset * FILES_ENTRY_LENGTH, delresult, dirsOffset);
+	for(files_offset = 0; files_offset < MAX_FILES; ++files_offset) {		
+		if (files[files_offset * FILES_ENTRY_LENGTH] == dirsOffset && files[files_offset * FILES_ENTRY_LENGTH + 1] != '\0') {
+			deleteFile(files + files_offset * FILES_ENTRY_LENGTH + 1, delresult, dirsOffset);
 		}
 	}
 	// Delete the dir inside the dir, if any
 	for(dirdelOffset = 0; dirdelOffset < MAX_FILES; ++dirdelOffset) {
-		if(dirs[dirdelOffset * DIRS_ENTRY_LENGTH] == dirsOffset) {
-			dirs[dirdelOffset * DIRS_ENTRY_LENGTH] = '/';
-			deleteDirectory(dirs + dirdelOffset * DIRS_ENTRY_LENGTH, delresult, dirsOffset);
+		if(dirs[dirdelOffset * DIRS_ENTRY_LENGTH] == dirsOffset && dirs[dirdelOffset * DIRS_ENTRY_LENGTH + 1] != '\0') {
+			deleteDirectory(dirs + dirdelOffset * DIRS_ENTRY_LENGTH + 1, delresult, dirsOffset);
+			readSector(dirs,DIRS_SECTOR);
 		}
 	}
 	// Delete the dir

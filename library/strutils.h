@@ -10,6 +10,15 @@ int strcmp(char* s1, char* s2) {
 	return 1;
 }
 
+void strcpy(char* sc, char* sd) {
+	int i = 0;
+	clear(sd, 15);
+	do {
+		sd[i] = sc[i];
+		++i;
+	} while(sc[i] != '\0');
+}
+
 void clear(char *buffer, int length) {
 	int i;
 	for (i = 0; i < length; ++i) buffer[i] = '\0';
