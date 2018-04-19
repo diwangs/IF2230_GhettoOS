@@ -1,6 +1,7 @@
 #include "../../library/declaration/constants.h"
 
 void main() {
+    int *result;
 	int i;
     char curdir;
     char argc;
@@ -21,5 +22,5 @@ void main() {
             interrupt(0x21, 0x0, "Directory not found.\r\n", 0, 0); 
         }
     }
-    interrupt(0x21, (curdir << 8) | 0x06, "shell", 0x2000, &succ);
+    interrupt(0x21, 0x07, result, 0, 0);
 }
