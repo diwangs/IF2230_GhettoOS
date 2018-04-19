@@ -50,8 +50,8 @@ int main() {
                 interrupt(0x21, 0x00, "\r\n", 0, 0);
             }
         } else {
-            interrupt(0x21, 0x20, curdir, argc, argv);                          // taruh argumen
-            interrupt(0x21, (curdir << 8) | 0x06, input, 0x200, &result);     // executeProgram
+            interrupt(0x21, 0x20, workingdir, argc, argv);                          // taruh argumen
+            interrupt(0x21, (curdir << 8) | 0x06, input, 0x2000, &result);     // executeProgram
         }
     }
     return 0;
