@@ -46,6 +46,7 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 
 	switch (AL) {
 		case 0x00:
+			printString("print");
 			printString(BX);
 			break;
 		case 0x01:
@@ -61,6 +62,7 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 			readFile(BX, CX, DX, AH);
 			break;
 		case 0x05:
+			printString("memasuki writeFile");
 			writeFile(BX, CX, DX, AH);
 			break;
 		case 0x06:
@@ -229,21 +231,31 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	// Search for empty sector
 	readSector(map, MAP_SECTOR);
 	map_offset = findUnusedSector(map);
+
+	printString("masuk writeFile\r\n");
+
 	// If there's no empty sectors
 	if (map_offset == NOT_FOUND) {
 		*result = 0x00;
 		return;
 	}
+
+	printString("cek ada sektor yang kosong\r\n");
+
 	// Search for empty file entry
 	readSector(files, FILES_SECTOR);
 	for (empty_files_index = 0; empty_files_index < MAX_FILES; ++empty_files_index) {
 		if (files[empty_files_index * DIRS_ENTRY_LENGTH + 1] == '\0') break;
 	}
+
 	// If there's no empty entries
 	if (files_offset == MAX_FILES) {
 		*result = -3;
 		return;
 	}
+
+	printString("cari indeks file\r\n");
+
 	// Find the index of first character of the filename, to determine when to search for the filename instead of dirsname
 	while (path[dirsname_offset] != '\0') {	
 		if (path[dirsname_offset] == '/') filename_idx = dirsname_offset + 1;
@@ -256,9 +268,15 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 		dirs_offset = searchPath(path, parentIndex);
 		if (dirs_offset == 0xFE) {*result = -1; return;}
 	} else dirs_offset = parentIndex;
+
+	printString("cek ada file udh ada atau belum\r\n");
+
 	// Search whether the file exists or not
 	files_offset = searchFile(path + filename_idx, dirs_offset);
 	if (files_offset != MAX_FILES) {*result = -2; return;}
+
+	printString("tulis ke file entry\r\n");
+
 	// Write to file entry
 	files[empty_files_index * FILES_ENTRY_LENGTH] = (char) dirs_offset;
 	dirsname_offset = 0;
@@ -280,6 +298,8 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	writeSector(files, FILES_SECTOR);
 	writeSector(sectors, SECTORS_SECTOR);
 	*result = 0;
+
+	printString("penulisan selesai\r\n");
 }
 
 void deleteFile(char *path, int *result, char parentIndex) {
@@ -398,6 +418,8 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 // Program execution
 //=======================================================================================
 
+
+// p harusnya 2
 void putArgs (char curdir, char argc, char **argv) {
 	char args[SECTOR_SIZE];
 	int i, j, p;
@@ -406,7 +428,7 @@ void putArgs (char curdir, char argc, char **argv) {
 	args[1] = argc;
 	i = 0;
 	j = 0;
-	for (p = 1; p < ARGS_SECTOR && i < argc; ++p) {
+	for (p = 2; p < ARGS_SECTOR && i < argc; ++p) {
 		args[p] = argv[i][j];
 		if (argv[i][j] == '\0') {
 			++i;
@@ -428,13 +450,14 @@ void getArgc (char *argc) {
 	*argc = args[1];
 }
 
+// p harusnya 2
 void getArgv (char index, char *argv) {
 	char args[SECTOR_SIZE];
 	int i, j, p;
 	readSector(args, ARGS_SECTOR);
 	i = 0;
 	j = 0;
-	for (p = 1; p < ARGS_SECTOR; ++p) {
+	for (p = 2; p < ARGS_SECTOR; ++p) {
 		if (i == index) {
 			argv[j] = args[p];
 			++j;

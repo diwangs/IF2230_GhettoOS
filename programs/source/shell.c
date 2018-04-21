@@ -2,6 +2,9 @@
 #include "../../library/declaration/strutils_dec.h"
 #include "../../library/declaration/fsutils_dec.h"
 
+#include "../../library/declaration/math_dec.h"
+void printInt(int i);
+
 int main() {
     char workingdir = 0xFF;            // current directory; default root
     char curdir = workingdir;          // directory yang dipakai untuk execute program
@@ -19,6 +22,11 @@ int main() {
     while(1) {
         i = 0;
         argc = 0;
+
+
+        // printInt(argc);
+        
+
         // argv[0] = '\0';
         interrupt(0x21, 0x00, prefix, 0, 0);// printString("$ ");
         interrupt(0x21, 0x01, input, 0, 0); // readString(input);
@@ -27,6 +35,9 @@ int main() {
             if (input[i] == 0x20) { // 0x20 == space
                 argv[argc++] = input + i + 1;
                 input[i] = '\0';
+
+                // printInt(argc);
+
             }
             ++i;
         }
@@ -50,7 +61,11 @@ int main() {
                 interrupt(0x21, 0x00, "\r\n", 0, 0);
             }
         } else {
+            // printInt(argc);
             interrupt(0x21, 0x20, curdir, argc, argv);                          // taruh argumen
+
+            // printInt(argc);
+
             interrupt(0x21, (curdir << 8) | 0x06, input, 0x200, &result);     // executeProgram
         }
     }
@@ -59,3 +74,15 @@ int main() {
 
 #include "../../library/strutils.h"
 #include "../../library/fsutils.h"
+
+// #include "../../library/math.h"
+// void printInt(int i) {
+//     char ir = '0' + (char) div(i, 100);
+//     char ip = '0' + (char) div(mod(i, 100), 10);
+//     char is = '0' + (char) mod(i, 10);
+//     interrupt(0x10, 0xE00 + ir, 0, 0, 0);
+//     interrupt(0x10, 0xE00 + ip, 0, 0, 0);
+//     interrupt(0x10, 0xE00 + is, 0, 0, 0);
+//     interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
+//     interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
+// }

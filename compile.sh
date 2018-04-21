@@ -76,7 +76,7 @@ echo "rm.o and lib.o linked"
 ./loadFile rm
 rm rm.o rm
 
-# Compile, link, and load rm
+# Compile, link, and load cat
 bcc -ansi -c -o cat.o source/cat.c
 echo "cat.c compiled"
 ld86 -o cat -d cat.o lib.o
