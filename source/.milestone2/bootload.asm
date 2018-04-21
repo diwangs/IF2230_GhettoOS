@@ -1,12 +1,12 @@
 ;bootload.asm
 ;Michael Black, 2007
 ;
-;This is a simple bootloader that loads and executes a kernel at sector 1
+;This is a simple bootloader that loads and executes a kernel at sector 3
 
 	bits 16
 KSEG	equ	0x1000		;kernel goes into memory at 0x10000
-KSIZE	equ	16		;kernel is at most 16 sectors (and probably less)
-KSTART	equ	1		;kernel lives at sector 1 (makes room for map & dir)
+KSIZE	equ	15		;kernel is at most 10 sectors (and probably less)
+KSTART	equ	1		;kernel lives at sector 3 (makes room for map & dir). Milestone 2 jadi 1 ?
 
 	;boot loader starts at 0 in segment 0x7c00
 	org 0h

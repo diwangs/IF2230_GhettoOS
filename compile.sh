@@ -16,16 +16,18 @@ echo "File entry sector loaded"
 dd if=source/sectors.img of=floppya.img bs=512 count=1 seek=259 conv=notrunc 2> /dev/null
 echo "File sector loaded"
 # Compile, link, and put the kernel into the floppy disk
+bcc -ansi -c -o source/proc.o source/proc.c
+echo "proc.c compiled"
 bcc -ansi -c -o source/kernel.o source/kernel.c
 echo "kernel.c compiled"
 as86 source/kernel.asm -o source/kernel_asm.o
 echo "kernel.asm assembled"
-ld86 -o source/kernel -d source/kernel.o source/kernel_asm.o
-echo "kernel.o and kernel_asm.o linked"
+ld86 -o source/kernel -d source/kernel.o source/kernel_asm.o source/proc.o
+echo "kernel.o, kernel_asm.o, and proc.o linked"
 dd if=source/kernel of=floppya.img bs=512 seek=1 conv=notrunc 2> /dev/null
 echo "Kernel loaded"
 # Remove the temporary file
-rm source/kernel.o source/kernel_asm.o source/kernel source/bootload
+rm source/kernel.o source/kernel_asm.o source/kernel source/bootload source/proc.o
 
 # Compile the loadFile program
 cd programs
@@ -83,6 +85,8 @@ ld86 -o cat -d cat.o lib.o
 echo "cat.o and lib.o linked"
 ./loadFile cat
 rm cat.o cat
+
+./loadFile keyproc2
 
 rm lib.o loadFile
 
