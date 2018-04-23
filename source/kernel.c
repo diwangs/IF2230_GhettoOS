@@ -30,6 +30,7 @@ void resumeProcess (int segment, int *result);
 void killProcess (int segment, int *result);
 void executeProgram (char *path, int asBackground, int *result, char parentIndex);
 void terminateProgram(int* result); 
+void showProcess();
 
 int main() {	
 	int result;
@@ -65,6 +66,7 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 		case 0x32: pauseProcess(BX, CX); break;
 		case 0x33: resumeProcess(BX, CX); break;
 		case 0x34: killProcess(BX, CX); break;
+		case 0x35: showProcess(); break;
 		default: printString("Invalid interrupt");
 	}
 }
@@ -529,4 +531,18 @@ void terminateProgram (int *result) {
 	restoreDataSegment();
 	if (parentSegment != NO_PARENT) resumeProcess(parentSegment, result);
 	yieldControl();
+}
+
+void showProcess() {
+	int i;
+	setKernelDataSegment();
+	for(i = 0; i < MAX_SEGMENTS; ++i) {
+		if (memoryMap[i] == USED) {
+			printString(pcbPool[i].index);
+			printString(" | ");
+			printInt(pcbPool[i].segment);
+			printString("\r\n");
+		}
+	}
+	restoreDataSegment();
 }

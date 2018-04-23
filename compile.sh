@@ -84,7 +84,15 @@ echo "cat.c compiled"
 ld86 -o cat -d cat.o lib.o
 echo "cat.o and lib.o linked"
 ./loadFile cat
-rm cat.o cat
+rm cat.o 
+
+# Compile, link, and load ps
+bcc -ansi -c -o ps.o source/ps.c
+echo "ps.c compiled"
+ld86 -o ps -d ps.o lib.o
+echo "ps.o and lib.o linked"
+./loadFile ps
+rm ps.o ps
 
 ./loadFile keyproc3a
 ./loadFile keyproc3b
