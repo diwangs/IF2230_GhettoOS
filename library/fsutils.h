@@ -28,7 +28,7 @@ int findUnusedEntry (char *entries) {
 char searchPath(char* path, char parentIndex) { // return the index of the last dirs
     char dirs[SECTOR_SIZE], cur_parent;
     int dirs_offset = 0, dirsname_offset = 0, dirsname_offset_chkp = 0, found = 0;
-    interrupt(0x21, 0x2, dirs, DIRS_SECTOR); // readSector itu interrupt
+    interrupt(0x21, 0x2, dirs, DIRS_SECTOR, 0); // readSector itu interrupt
     dirsname_offset = 0;
     cur_parent = parentIndex;
     do { 
@@ -55,18 +55,18 @@ char searchPath(char* path, char parentIndex) { // return the index of the last 
     return cur_parent;
 }
 
-char searchFile(char* filename, char dir_index) {
+int searchFile(char* filename, char dir_index) {
 	char files[SECTOR_SIZE];
 	int files_offset = 0, filesname_offset = 0;
-    interrupt(0x21, 0x2, files, FILES_SECTOR); // readSector itu interrupt	
+    interrupt(0x21, 0x2, files, FILES_SECTOR, 0); // readSector itu interrupt	    	                     
 	do {
 		// If the parent directory matches current parent...
 		if (files[files_offset * FILES_ENTRY_LENGTH] == dir_index) { 
 			// Match the file name
 			if(strcmp(files + files_offset * FILES_ENTRY_LENGTH + 1, filename)) break;
-		} 
+		}                  
 		++files_offset;
 	} while (files_offset < MAX_FILES);
-	return files_offset;
+	return files_offset == MAX_FILES ? -1 : files_offset;
 }
 #endif

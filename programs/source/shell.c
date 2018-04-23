@@ -3,7 +3,7 @@
 #include "../../library/declaration/fsutils_dec.h"
 
 int main() {
-    char workingdir = 0xFF;            // current directory; default root
+    char workingdir;            // current directory; default root
     char prefix[3];
     char input[100];
     char argc;              // jumlah argumen
@@ -13,17 +13,24 @@ int main() {
     int result;
     char dirs[SECTOR_SIZE];
     enableInterrupts();
+    strcpy("$ ", prefix);
+    workingdir = 0xFF;
 
-    prefix[0] = '$';
-    prefix[1] = ' ';   
-    prefix[2] = '\0'; 
-    while(1) {
+    // Main loop
+    while(TRUE) {
+        // Init
         i = 0;
         argc = 0;
         run_as_background = 0;
-        interrupt(0x21, 0x00, prefix, 0, 0);// printString("$ ");
-        interrupt(0x21, 0x01, input, 1, 0); // readString(input);
-        // Chop the spaces, if any
+        result = 0;
+
+        // Input 
+        do {
+            interrupt(0x21, 0x00, prefix, 0, 0);
+            interrupt(0x21, 0x01, input, 1, 0); 
+        } while(strcmp(input, ""));
+
+        // Chop the spaces in the input, if any
         while (input[i] != '\0') {
             if (input[i] == 0x20) { // 0x20 == space
                 argv[argc++] = input + i + 1;
@@ -31,16 +38,16 @@ int main() {
             }
             ++i;
         }
-        // Detect &
+
+        // Detect whether to run the program in the background or not
         if (strcmp(argv[argc - 1], "&")) {
             --argc;
             run_as_background = 1;
         }
 
+        // Execute the input
         if (strcmp(input, "cd")) {      // pindah ke folder
-            if (argc == 0) {
-                interrupt(0x21, 0x00, "Usage: cd relative_path\r\n", 0, 0);
-            } else {            // masuk ke sebuah directory
+            if (argc == 0) workingdir = 0xFF; else {
                 if(searchPath(argv[0], workingdir) == 0xFE) {
                     interrupt(0x21, 0x00, "No such directory\r\n", 0, 0);
                 } else {
@@ -56,22 +63,30 @@ int main() {
                 interrupt(0x21, 0x00, "\r\n", 0, 0);
             }
         } else if (strcmp(input, "pause")) {
-            if (argc == 0) interrupt(0x21, 0x00, "Usage: pause pid\r\n", 0, 0); else {
-
+            if (argc == 0) interrupt(0x21, 0x00, "Usage: pause <pid>\r\n", 0, 0); else {
+                if (strcmp(argv[0], "0")) interrupt(0x21, 0x00, "You can't pause the shell\r\n", 0, 0); else {
+                    interrupt(0x21, 0x32, ((*argv[0] - '0') + 2) * 4096, &result, 0); 
+                    if (result == NOT_FOUND) interrupt(0x21, 0x00, "No running process with such PID\r\n", 0, 0);
+                }
             }
         } else if (strcmp(input, "resume")) {
-            if (argc == 0) interrupt(0x21, 0x00, "Usage: resume pid\r\n", 0, 0); else {
-                //printInt((*argv[0] - '0'));
-                interrupt(0x21, 0x31, 0, 0, 0); // pause the shell          
-                interrupt(0x21, 0x33, ((*argv[0] - '0') + 2) * 4096, &result, 0); // resume the pid
+            if (argc == 0) interrupt(0x21, 0x00, "Usage: resume <pid>\r\n", 0, 0); else {
+                interrupt(0x21, 0x33, ((*argv[0] - '0') + 2) * 4096, &result, 0); 
+                if (result == NOT_FOUND) interrupt(0x21, 0x00, "No paused process with such PID\r\n", 0, 0); 
+                else interrupt(0x21, 0x31, 0, 0, 0); // pause the shell
             }
         } else if (strcmp(input, "kill")) {
-            if (argc == 0) interrupt(0x21, 0x00, "Usage: kill pid\r\n", 0, 0); else {
-                
+            if (argc == 0) interrupt(0x21, 0x00, "Usage: kill <pid>\r\n", 0, 0); else {
+                if (strcmp(argv[0], "0")) interrupt(0x21, 0x00, "You can't kill the shell\r\n", 0, 0); else {                
+                    interrupt(0x21, 0x34, ((*argv[0] - '0') + 2) * 4096, &result, 0); 
+                    if (result == NOT_FOUND) interrupt(0x21, 0x00, "No running process with such PID\r\n", 0, 0);
+                }
             }
         } else {
             interrupt(0x21, 0x20, workingdir, argc, argv);                // taruh argumen
             interrupt(0x21, (workingdir << 8) | 0x06, input, run_as_background, &result);     // executeProgram
+            if (result == NOT_FOUND) interrupt(0x21, 0x00, "No such program\r\n", 0, 0);
+            else if (result == INSUFFICIENT_MEMORY) interrupt(0x21, 0x00, "Insufficient memory\r\n", 0, 0);
         }
     }
     return 0;

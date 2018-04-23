@@ -36,7 +36,7 @@ int main() {
 	initializeProcStructures();
 	makeInterrupt21();
 	makeTimerInterrupt();
-	interrupt(0x21, 0xFF << 8 | 0x06, "shell", &result, 0);
+	interrupt(0x21, 0xFF << 8 | 0x06, "shell", 0, &result);
 	while(1) {}
 }
 
@@ -201,18 +201,18 @@ void readFile(char *buffer, char *path, int *result, char parentIndex) {
 	if (filename_idx != 0) {
 		path[filename_idx - 1] = '\0'; // cut the slash
 		dirs_offset = searchPath(path, parentIndex);
-		if (dirs_offset == 0xFE) {*result = -1; return;}
+		if (dirs_offset == 0xFE) {*result = NOT_FOUND; return;}
 	} else dirs_offset = parentIndex;
 	// Search for the file in the path
 	files_offset = searchFile(path + filename_idx, dirs_offset);
-	if (files_offset == MAX_FILES) {*result = -2; return;}	
+	if (files_offset == MAX_FILES) {*result = NOT_FOUND; return;}	
 	// Read the file from its sectors
 	readSector(sectors, SECTORS_SECTOR);
 	while(sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset] != '\0' && sectors_offset < SECTORS_ENTRY_LENGTH) {
 		readSector(buffer + sectors_offset * SECTOR_SIZE, sectors[files_offset * SECTORS_ENTRY_LENGTH + sectors_offset]);
 		++sectors_offset;
 	} 
-	*result = files_offset	;
+	*result = files_offset;
 }
 
 void writeFile(char *buffer, char *path, int *result, char parentIndex) {
@@ -227,7 +227,7 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	map_offset = findUnusedSector(map);
 	// If there's no empty sectors
 	if (map_offset == NOT_FOUND) {
-		*result = 0x00;
+		*result = INSUFFICIENT_MEMORY;
 		return;
 	}
 	// Search for empty file entry
@@ -237,7 +237,7 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	}
 	// If there's no empty entries
 	if (files_offset == MAX_FILES) {
-		*result = -3;
+		*result = INSUFFICIENT_MEMORY;
 		return;
 	}
 	// Find the index of first character of the filename, to determine when to search for the filename instead of dirsname
@@ -250,11 +250,11 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	if (filename_idx != 0) { 
 		path[filename_idx - 1] = '\0';		
 		dirs_offset = searchPath(path, parentIndex);
-		if (dirs_offset == 0xFE) {*result = -1; return;}
+		if (dirs_offset == 0xFE) {*result = NOT_FOUND; return;}
 	} else dirs_offset = parentIndex;
 	// Search whether the file exists or not
 	files_offset = searchFile(path + filename_idx, dirs_offset);
-	if (files_offset != MAX_FILES) {*result = -2; return;}
+	if (files_offset != MAX_FILES) {*result = ALREADY_EXISTS; return;}
 	// Write to file entry
 	files[empty_files_index * FILES_ENTRY_LENGTH] = (char) dirs_offset;
 	dirsname_offset = 0;
@@ -275,7 +275,7 @@ void writeFile(char *buffer, char *path, int *result, char parentIndex) {
 	writeSector(map, MAP_SECTOR);
 	writeSector(files, FILES_SECTOR);
 	writeSector(sectors, SECTORS_SECTOR);
-	*result = 0;
+	*result = SUCCESS;
 }
 
 void deleteFile(char *path, int *result, char parentIndex) {
@@ -293,11 +293,11 @@ void deleteFile(char *path, int *result, char parentIndex) {
 	if (filename_idx != 0) {
 		path[filename_idx - 1] = '\0';
 		dirs_offset = searchPath(path, parentIndex);
-		if (dirs_offset == 0xFE) {*result = -1; return;}
+		if (dirs_offset == 0xFE) {*result = NOT_FOUND; return;}
 	} else dirs_offset = parentIndex;
 	// Search for the file
 	files_offset = searchFile(path + filename_idx, dirs_offset);
-	if (files_offset == MAX_FILES) {*result = -2; return;}
+	if (files_offset == MAX_FILES) {*result = NOT_FOUND; return;}
 	// Delete in map
 	readSector(map, MAP_SECTOR);
 	readSector(sectors, SECTORS_SECTOR);
@@ -314,7 +314,7 @@ void deleteFile(char *path, int *result, char parentIndex) {
 	writeSector(map, MAP_SECTOR);
 	writeSector(files, FILES_SECTOR);
 	writeSector(sectors, SECTORS_SECTOR);
-	*result = 0;
+	*result = SUCCESS;
 }
 
 
@@ -341,11 +341,11 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 	if (target_dir_idx != 0) {
 		path[target_dir_idx - 1] = '\0';
 		dirsOffset = searchPath(path, parentIndex);
-		if (dirsOffset == 0xFE) {*result = -1; return;}
+		if (dirsOffset == 0xFE) {*result = NOT_FOUND; return;}
 	} else dirsOffset = parentIndex;
 	// Check the availability of path name
 	toBeCreatedOffset = searchPath(path + target_dir_idx, dirsOffset);
-	if (toBeCreatedOffset != 0xFE) {*result = -2; return;}
+	if (toBeCreatedOffset != 0xFE) {*result = ALREADY_EXISTS; return;}
 	
 	// No dirs yet, write directory
 	dirs[unusedEntry * DIRS_ENTRY_LENGTH] = dirsOffset;
@@ -355,7 +355,7 @@ void makeDirectory(char *path, int *result, char parentIndex) {
 		i++;
 	}
 	writeSector(dirs,DIRS_SECTOR);
-	*result = 0;	
+	*result = SUCCESS;	
 }
 
 void deleteDirectory(char *path, int *success, char parentIndex) {
@@ -367,7 +367,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 	readSector(dirs,DIRS_SECTOR);
 	// Search for path
 	dirsOffset = searchPath(path, parentIndex);
-	if (dirsOffset == 0xFE) {*success = -1; return;}
+	if (dirsOffset == 0xFE) {*success = NOT_FOUND; return;}
 	// Delete the file inside the dir, if any
 	readSector(files, FILES_SECTOR);
 	for(files_offset = 0; files_offset < MAX_FILES; ++files_offset) {		
@@ -385,7 +385,7 @@ void deleteDirectory(char *path, int *success, char parentIndex) {
 	// Delete the dir
 	dirs[dirsOffset * DIRS_ENTRY_LENGTH + 1] = '\0';
 	writeSector(dirs, DIRS_SECTOR);	
-	*success = 0;
+	*success = SUCCESS;
 }
 
 
@@ -516,7 +516,7 @@ void executeProgram (char *path, int asBackground, int *result, char parentIndex
 			}
 			initializeProgram(segment);
 			if (!asBackground) sleep(); // If executed as background, don't sleep the parent process
-		} else *result = INSUFFICIENT_SEGMENTS;
+		} else *result = INSUFFICIENT_MEMORY;
 	}
 }
 

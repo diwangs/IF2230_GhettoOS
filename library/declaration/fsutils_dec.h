@@ -4,6 +4,6 @@
 int findUnusedSector(char *map);
 int findUnusedEntry(char *entries);
 char searchPath(char* path, char parentIndex);
-char searchFile(char* filename, char dir_index);
+int searchFile(char* filename, char dir_index);
 
 #endif
