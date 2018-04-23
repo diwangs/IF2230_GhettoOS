@@ -86,7 +86,8 @@ echo "cat.o and lib.o linked"
 ./loadFile cat
 rm cat.o cat
 
-./loadFile keyproc2
+./loadFile keyproc3a
+./loadFile keyproc3b
 
 rm lib.o loadFile
 

@@ -5,8 +5,7 @@
 void handleInterrupt21(int AX, int BX, int CX, int DX); // asm linking purposes
 // Utility
 void printString(char *string);
-void printInt(int i);
-void readString(char *string);
+void readString(char *string, int disableProcessControl);
 #include "../library/declaration/math_dec.h"
 #include "../library/declaration/strutils_dec.h"
 #include "../library/declaration/fsutils_dec.h"
@@ -29,7 +28,7 @@ void sleep ();
 void pauseProcess (int segment, int *result);
 void resumeProcess (int segment, int *result);
 void killProcess (int segment, int *result);
-void executeProgram (char *path, int *result, char parentIndex);
+void executeProgram (char *path, int asBackground, int *result, char parentIndex);
 void terminateProgram(int* result); 
 
 int main() {	
@@ -48,12 +47,12 @@ void handleInterrupt21 (int AX, int BX, int CX, int DX) {
 
 	switch (AL) {
 		case 0x00: printString(BX); break;
-		case 0x01: readString(BX); break;
+		case 0x01: readString(BX, CX); break;
 		case 0x02: readSector(BX, CX); break;
 		case 0x03: writeSector(BX, CX); break;
 		case 0x04: readFile(BX, CX, DX, AH); break;
 		case 0x05: writeFile(BX, CX, DX, AH); break;
-		case 0x06: executeProgram(BX, CX, AH); break;
+		case 0x06: executeProgram(BX, CX, DX, AH); break;
 		case 0x07: terminateProgram(BX); break;
 		case 0x08: makeDirectory(BX, CX, AH); break;
 		case 0x09: deleteFile(BX, CX, AH); break;
@@ -100,30 +99,30 @@ void handleTimerInterrupt(int segment, int stackPointer) {
 void printString(char *string) { // Works like println
 	int i = 0;
 	while (string[i] != '\0') interrupt(0x10, 0xE00 + string[i++], 0, 0, 0);
-	// interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
-	// interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
-void printInt(int i) {
-	char ir = '0' + (char) div(i, 100);
-	char ip = '0' + (char) div(mod(i, 100), 10);
-	char is = '0' + (char) mod(i, 10);
-	interrupt(0x10, 0xE00 + ir, 0, 0, 0);
-	interrupt(0x10, 0xE00 + ip, 0, 0, 0);
-	interrupt(0x10, 0xE00 + is, 0, 0, 0);
-	interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
-	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
-}
-
-void readString(char *string) {
+void readString(char *string, int disableProcessControl) {
 	int index = 0;
+	int result;
 	char input_buffer = 0x00; // To remember last input
 	do {
 		input_buffer = interrupt(0x16, 0, 0, 0, 0); // Read a character from the keyboard
 		if (input_buffer == '\r') { // If it's an ENTER, terminate it with a NULL
 			interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // Print it
 			string[index] = '\0'; 
-		} else if (input_buffer != '\b') { // If it's not a backspace, input it
+		} else if (input_buffer == 0x03 && !disableProcessControl) { // ctrl c
+			setKernelDataSegment();
+			printString("\r\nProcess killed\r\n");			
+			restoreDataSegment();
+			terminateProgram(&result);			
+		} else if (input_buffer == 0x1A && !disableProcessControl) { // ctrl z
+			setKernelDataSegment();		
+			printString("\r\nProcess suspended\r\n");		
+			restoreDataSegment();				
+			sleep();
+			resumeProcess(0x2000, result); // Resume shell		
+		}
+		else if (input_buffer != '\b') { // If it's not a backspace, input it
 			interrupt(0x10, 0xE00 + input_buffer, 0, 0, 0); // Print it
 			string[index++] = input_buffer; 
 		} else if (index > 0) { // If it is backspace, space over the last character
@@ -491,7 +490,7 @@ void killProcess (int segment, int *result) {
 	*result = res;
 }
 
-void executeProgram (char *path, int *result, char parentIndex) {
+void executeProgram (char *path, int asBackground, int *result, char parentIndex) {
 	struct PCB* pcb;
 	int segment;
 	int i, fileIndex;
@@ -516,7 +515,7 @@ void executeProgram (char *path, int *result, char parentIndex) {
 				putInMemory(segment, i, buffer[i]);
 			}
 			initializeProgram(segment);
-			sleep();
+			if (!asBackground) sleep(); // If executed as background, don't sleep the parent process
 		} else *result = INSUFFICIENT_SEGMENTS;
 	}
 }
