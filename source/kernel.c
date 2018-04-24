@@ -38,7 +38,6 @@ int main() {
 	makeInterrupt21();
 	makeTimerInterrupt();
 	interrupt(0x21, 0xFF << 8 | 0x06, "shell", 0, &result);
-	while(1) {}
 }
 
 void handleInterrupt21 (int AX, int BX, int CX, int DX) {
@@ -534,14 +533,31 @@ void terminateProgram (int *result) {
 }
 
 void showProcess() {
+	char files[SECTOR_SIZE];
 	int i;
+	char temp1;
+	int temp2;
+	char* temp3;
+	readSector(files, FILES_SECTOR);
 	setKernelDataSegment();
 	for(i = 0; i < MAX_SEGMENTS; ++i) {
-		if (memoryMap[i] == USED) {
-			printString(pcbPool[i].index);
-			printString(" | ");
-			printInt(pcbPool[i].segment);
+		if (memoryMap[i] == SEGMENT_USED) {
+			temp1 = pcbPool[i].index;
+			temp3 = "  |  ";
+			restoreDataSegment();
+			setKernelDataSegment();
+			temp2 = (pcbPool[i].segment >> 12) - 2;
+			printInt(temp2);
+			restoreDataSegment();
+			setKernelDataSegment();
+			printString(temp3);
+			restoreDataSegment();
+			readSector(files, FILES_SECTOR);
+			printString(files + temp1 * FILES_ENTRY_LENGTH + 1);
+			setKernelDataSegment();
 			printString("\r\n");
+			restoreDataSegment();
+			setKernelDataSegment();
 		}
 	}
 	restoreDataSegment();

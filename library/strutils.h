@@ -27,8 +27,6 @@ void printInt(int i) {
 	interrupt(0x10, 0xE00 + ir, 0, 0, 0);
 	interrupt(0x10, 0xE00 + ip, 0, 0, 0);
 	interrupt(0x10, 0xE00 + is, 0, 0, 0);
-	interrupt(0x10, 0xE00 + '\r', 0, 0, 0);       
-	interrupt(0x10, 0xE00 + '\n', 0, 0, 0);
 }
 
 void clear(char *buffer, int length) {
