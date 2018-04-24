@@ -34,7 +34,7 @@
 struct PCB {
 	char index;  		// program's file index in files sector
 	int state;		// One of the constants above.
-  int segment;		// memory segment occupied by the process.
+  unsigned int segment;		// memory segment occupied by the process.
 	int stackPointer;	// address of the stack pointer for the process.
   int parentSegment;
 	

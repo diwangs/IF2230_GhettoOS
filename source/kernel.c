@@ -536,7 +536,7 @@ void showProcess() {
 	char files[SECTOR_SIZE];
 	int i;
 	char temp1;
-	int temp2;
+	unsigned int temp2;
 	char* temp3;
 	readSector(files, FILES_SECTOR);
 	setKernelDataSegment();
